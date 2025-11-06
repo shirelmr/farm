@@ -1,35 +1,77 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react'
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+  const [ducks, setDucks] = useState([]);
+
+  // Inicializar los patos
+  useEffect(() => {
+    fetch("http://localhost:8000/init", {
+      method: 'POST'
+    })
+    .then(res => res.json())
+    .then(res => {
+      setDucks(res.ducks);
+    });
+  }, []);
+
+  // Actualizar las posiciones de los patos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch("http://localhost:8000/run")
+      .then(res => res.json())
+      .then(res => {
+        setDucks(res.ducks);
+      });
+    }, 100); // Actualizar cada 100ms para una animación más fluida
+
+    return () => clearInterval(interval);
+  }, []);
+
+  let matrix = [
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+  [0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0],
+  [0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0],
+  [0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0],
+  [0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0],
+  [0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0],
+  [0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0],
+  [0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0],
+  [0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0],
+  [0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0],
+  [0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0],
+  [0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+];
+
+
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <div>
+      <svg width="800" height="500" xmlns="http://www.w3.org/2000/svg">
+      {
+        matrix.map((row, rowidx) =>
+          row.map((value, colidx) =>
+            <rect x={250 + 25 * rowidx} y={5 + 25 * colidx} width={25} height={25} fill={value == 1 ? "lightgray" : "gray"}/>
+      ))
+      }
+      {/* Render all ducks */}
+      {ducks.map(duck => (
+        <image 
+          key={duck.id}
+          x={255 + 25 * (duck.pos[0]-1)} 
+          y={9 + 25 * (duck.pos[1]-1)} 
+          href="ghost.png"
+          style={{
+            transform: `rotate(${Math.random() * 360}deg)`,
+            transformOrigin: 'center'
+          }}
+        />
+      ))}
+      </svg>
+    </div>
+  );
 
-export default App
+};
+
+export default App;
