@@ -11,16 +11,17 @@ import time
 from objloader import *
 from pato import Pato
 
-screen_width = 800
-screen_height = 600
+# BIGGER WINDOW
+screen_width = 1400
+screen_height = 900
 
-# Configuración de cámara
+# Configuración de cámara - BETTER VIEW
 FOVY = 60.0
 ZNEAR = 0.01
-ZFAR = 900.0
-EYE_X = 300.0
-EYE_Y = 200.0
-EYE_Z = 300.0
+ZFAR = 2000.0
+EYE_X = 0.0
+EYE_Y = 400.0  # Higher up
+EYE_Z = 600.0  # Further back
 CENTER_X = 0
 CENTER_Y = 0
 CENTER_Z = 0
@@ -28,24 +29,25 @@ UP_X = 0
 UP_Y = 1
 UP_Z = 0
 
-# Ejes
-X_MIN = -500
-X_MAX = 500
-Y_MIN = -500
-Y_MAX = 500
-Z_MIN = -500
-Z_MAX = 500
-DimBoard = 500  # Grid más grande
+# Ejes - BIGGER
+X_MIN = -800
+X_MAX = 800
+Y_MIN = -800
+Y_MAX = 800
+Z_MIN = -800
+Z_MAX = 800
+DimBoard = 800  # BIGGER GRID
 
 # Variables para los patos
-patos = []  # Lista de patos
+patos = []
 objetos_pato = {}
 farm_models = {}
-previous_positions = {}  # Para calcular el ángulo de rotación
+previous_positions = {}
 
 # Variables para el control del observador
 theta = 0.0
-radius = 600  # Cámara más lejos para ver todo
+phi = 30.0  # Vertical angle
+radius = 700.0  # Camera distance
 
 pygame.init()
 
@@ -67,7 +69,7 @@ def obtener_posiciones_patos():
         response = requests.get("http://localhost:8000/run", timeout=1)
         if response.status_code == 200:
             data = response.json()
-            return data['ducks']  # Julia devuelve {"ducks": [...]}
+            return data['ducks']
     except Exception as e:
         print(f"Error obteniendo posiciones: {e}")
     return None
@@ -75,11 +77,9 @@ def obtener_posiciones_patos():
 def julia_to_opengl(julia_x, julia_y):
     """
     Convierte coordenadas de Julia (0-20, 0-15) a OpenGL
-    Mapeamos a un espacio más grande para que se vea bien
     """
-    # Centrar en (10, 7.5) y escalar por 40 (MÁS GRANDE)
-    opengl_x = (julia_x - 10.0) * 40.0
-    opengl_z = (julia_y - 7.5) * 40.0
+    opengl_x = (julia_x - 10.0) * 50.0  # Bigger scaling
+    opengl_z = (julia_y - 7.5) * 50.0
     return opengl_x, opengl_z
 
 def Axis():
@@ -119,14 +119,15 @@ def Init():
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     gluLookAt(EYE_X, EYE_Y, EYE_Z, CENTER_X, CENTER_Y, CENTER_Z, UP_X, UP_Y, UP_Z)
-    glClearColor(0, 0, 0, 0)
+    glClearColor(0.53, 0.81, 0.92, 1.0)  # Nice sky blue background
     glEnable(GL_DEPTH_TEST)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
     
-    # Iluminación
-    glLightfv(GL_LIGHT0, GL_POSITION, (0, 200, 0, 0.0))
-    glLightfv(GL_LIGHT0, GL_AMBIENT, (0.5, 0.5, 0.5, 1.0))
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
+    # Better lighting
+    glLightfv(GL_LIGHT0, GL_POSITION, (200, 500, 200, 1.0))
+    glLightfv(GL_LIGHT0, GL_AMBIENT, (0.3, 0.3, 0.3, 1.0))
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.8, 0.8, 0.8, 1.0))
+    glLightfv(GL_LIGHT0, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0))
     glEnable(GL_LIGHTING)
     glEnable(GL_LIGHT0)
     glEnable(GL_COLOR_MATERIAL)
@@ -159,42 +160,42 @@ def Init():
     print("Cargando modelos de la granja...")
     
     try:
-        farm_models['farm'] = OBJ("farm.obj", swapyz=True)
+        farm_models['farm'] = OBJ("farm.obj", swapyz=False)  # Try without swapyz
         farm_models['farm'].generate()
         print("✓ farm.obj cargado")
     except:
         print("✗ No se pudo cargar farm.obj")
     
     try:
-        farm_models['granja'] = OBJ("granja.obj", swapyz=True)
+        farm_models['granja'] = OBJ("granja.obj", swapyz=False)
         farm_models['granja'].generate()
         print("✓ granja.obj cargado")
     except:
         print("✗ No se pudo cargar granja.obj")
     
     try:
-        farm_models['gallinero'] = OBJ("gallinero.obj", swapyz=True)
+        farm_models['gallinero'] = OBJ("gallinero.obj", swapyz=False)
         farm_models['gallinero'].generate()
         print("✓ gallinero.obj cargado")
     except:
         print("✗ No se pudo cargar gallinero.obj")
     
     try:
-        farm_models['molino'] = OBJ("molino.obj", swapyz=True)
+        farm_models['molino'] = OBJ("molino.obj", swapyz=False)
         farm_models['molino'].generate()
         print("✓ molino.obj cargado")
     except:
         print("✗ No se pudo cargar molino.obj")
     
     try:
-        farm_models['trigo'] = OBJ("trigo.obj", swapyz=True)
+        farm_models['trigo'] = OBJ("trigo.obj", swapyz=False)
         farm_models['trigo'].generate()
         print("✓ trigo.obj cargado")
     except:
         print("✗ No se pudo cargar trigo.obj")
     
     try:
-        farm_models['sembradero'] = OBJ("sembradero1.obj", swapyz=True)
+        farm_models['sembradero'] = OBJ("sembradero1.obj", swapyz=False)
         farm_models['sembradero'].generate()
         print("✓ sembradero1.obj cargado")
     except:
@@ -202,19 +203,25 @@ def Init():
     
     print("Modelos de granja cargados!")
     
-    # Crear 10 patos (Julia inicializa con n_ducks=10)
+    # Crear 10 patos
     for i in range(10):
         nuevo_pato = Pato(0, 0, velocidad=2.0)
         nuevo_pato.cargar_objetos(objetos_pato)
         patos.append(nuevo_pato)
-        previous_positions[i+1] = (0, 0)  # Inicializar posiciones previas
+        previous_positions[i+1] = (0, 0)
     
     print(f"Creados {len(patos)} patos")
 
 def lookat():
-    global EYE_X, EYE_Z, radius
-    EYE_X = radius * (math.cos(math.radians(theta)) + math.sin(math.radians(theta)))
-    EYE_Z = radius * (-math.sin(math.radians(theta)) + math.cos(math.radians(theta)))
+    global EYE_X, EYE_Y, EYE_Z, radius, theta, phi
+    # Spherical coordinates for better camera control
+    phi_rad = math.radians(phi)
+    theta_rad = math.radians(theta)
+    
+    EYE_X = radius * math.sin(phi_rad) * math.sin(theta_rad)
+    EYE_Y = radius * math.cos(phi_rad)
+    EYE_Z = radius * math.sin(phi_rad) * math.cos(theta_rad)
+    
     glLoadIdentity()
     gluLookAt(EYE_X, EYE_Y, EYE_Z, CENTER_X, CENTER_Y, CENTER_Z, UP_X, UP_Y, UP_Z)
 
@@ -222,8 +229,8 @@ def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     Axis()
     
-    # Dibujar el plano VERDE (como pasto)
-    glColor3f(0.2, 0.6, 0.2)
+    # Draw BIGGER green ground
+    glColor3f(0.2, 0.7, 0.2)
     glBegin(GL_QUADS)
     glVertex3d(-DimBoard, 0, -DimBoard)
     glVertex3d(-DimBoard, 0, DimBoard)
@@ -231,71 +238,59 @@ def display():
     glVertex3d(DimBoard, 0, -DimBoard)
     glEnd()
     
-    # Dibujar modelos de la granja con posiciones específicas
-    # Granja principal (barn) - centro-izquierda
+    # Farm models - FIXED positions and rotations
     if farm_models.get('granja'):
         glPushMatrix()
-        glTranslatef(-150, 0, -100)
-        glScalef(20, 20, 20)
+        glTranslatef(-200, 0, -150)
+        glRotatef(0, 0, 1, 0)  # Rotate to face correctly
+        glScalef(30, 30, 30)
         farm_models['granja'].render()
         glPopMatrix()
 
-    # Gallinero (chicken coop) - arriba-derecha
     if farm_models.get('gallinero'):
         glPushMatrix()
-        glTranslatef(100, 0, -120)
-        glScalef(15, 15, 15)
+        glTranslatef(150, 0, -180)
+        glRotatef(45, 0, 1, 0)
+        glScalef(25, 25, 25)
         farm_models['gallinero'].render()
         glPopMatrix()
 
-    # Molino (windmill) - esquina superior izquierda
     if farm_models.get('molino'):
         glPushMatrix()
-        glTranslatef(-120, 0, 100)
-        glScalef(25, 25, 25)
+        glTranslatef(-180, 0, 150)
+        glRotatef(0, 0, 1, 0)
+        glScalef(35, 35, 35)
         farm_models['molino'].render()
         glPopMatrix()
 
-    # Sembradero (planter/field) - abajo-derecha
     if farm_models.get('sembradero'):
         glPushMatrix()
-        glTranslatef(120, 0, 80)
-        glScalef(18, 18, 18)
+        glTranslatef(180, 0, 120)
+        glRotatef(0, 0, 1, 0)
+        glScalef(28, 28, 28)
         farm_models['sembradero'].render()
         glPopMatrix()
 
-    # Trigo (wheat) - esparcido en varias posiciones
     if farm_models.get('trigo'):
-        # Trigo 1
-        glPushMatrix()
-        glTranslatef(80, 0, 50)
-        glScalef(10, 10, 10)
-        farm_models['trigo'].render()
-        glPopMatrix()
-        
-        # Trigo 2
-        glPushMatrix()
-        glTranslatef(100, 0, 70)
-        glScalef(10, 10, 10)
-        farm_models['trigo'].render()
-        glPopMatrix()
-        
-        # Trigo 3
-        glPushMatrix()
-        glTranslatef(140, 0, 60)
-        glScalef(10, 10, 10)
-        farm_models['trigo'].render()
-        glPopMatrix()
+        # Multiple wheat patches
+        positions = [(120, 0, 80), (150, 0, 100), (200, 0, 90), 
+                     (-150, 0, 80), (-120, 0, 100)]
+        for pos in positions:
+            glPushMatrix()
+            glTranslatef(*pos)
+            glScalef(15, 15, 15)
+            farm_models['trigo'].render()
+            glPopMatrix()
 
-    # Farm (si es cercado o decoración) - alrededor
     if farm_models.get('farm'):
         glPushMatrix()
         glTranslatef(0, 0, 0)
-        glScalef(30, 30, 30)
+        glRotatef(0, 0, 1, 0)
+        glScalef(40, 40, 40)
         farm_models['farm'].render()
         glPopMatrix()
     
-    # Dibujar todos los patos
+    # Draw ducks
     for pato in patos:
         pato.dibujar()
 
@@ -310,26 +305,46 @@ if not inicializar_simulacion():
     done = True
 
 print("Programa iniciado. 10 patos con flocking desde Julia!")
-print("Usa flechas para rotar cámara. ESC para salir.")
+print("Usa flechas para rotar cámara. W/S para zoom. ESC para salir.")
 
 # Main loop
 last_julia_call = time.time()
-julia_call_frequency = 0.033  # Call Julia 30 times per second (every 33ms)
+julia_call_frequency = 0.1  # Call Julia 10 times per second (slower for now)
+clock = pygame.time.Clock()
 
 while not done:
     current_time = time.time()
     
-    keys = pygame.key.get_pressed()
+    # Process events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            done = True
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                done = True
     
-    # Control de cámara (flechas)
+    # Camera controls
+    keys = pygame.key.get_pressed()
     if keys[pygame.K_RIGHT]:
-        theta = (theta + 1.0) % 360
+        theta = (theta + 2.0) % 360
         lookat()
     if keys[pygame.K_LEFT]:
-        theta = (theta - 1.0) % 360
+        theta = (theta - 2.0) % 360
+        lookat()
+    if keys[pygame.K_UP]:
+        phi = max(10, phi - 1.0)  # Don't go below horizon
+        lookat()
+    if keys[pygame.K_DOWN]:
+        phi = min(80, phi + 1.0)  # Don't flip upside down
+        lookat()
+    if keys[pygame.K_w]:
+        radius = max(200, radius - 10)  # Zoom in
+        lookat()
+    if keys[pygame.K_s]:
+        radius = min(1200, radius + 10)  # Zoom out
         lookat()
     
-    # Obtener posiciones desde Julia - basado en TIEMPO no en frames
+    # Call Julia
     if current_time - last_julia_call >= julia_call_frequency:
         last_julia_call = current_time
         
@@ -359,20 +374,14 @@ while not done:
                     patos[pato_index].actualizar(moviendo=is_moving)
                     previous_positions[duck_id] = (new_x, new_z)
     
-    # Actualizar animaciones de patos cada frame
+    # Update animations
     for pato in patos:
         pato.actualizar(moviendo=True)
 
-    # Eventos
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                done = True
-        if event.type == pygame.QUIT:
-            done = True
-
+    # Render
     display()
     pygame.display.flip()
-    pygame.time.wait(10)
+    
+    clock.tick(60)
 
 pygame.quit()
