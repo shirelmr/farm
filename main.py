@@ -30,19 +30,20 @@ UP_Y = 1
 UP_Z = 0
 
 # Ejes - BIGGER
-X_MIN = -800
-X_MAX = 800
-Y_MIN = -800
-Y_MAX = 800
-Z_MIN = -800
-Z_MAX = 800
-DimBoard = 800  # BIGGER GRID
+X_MIN = -1000
+X_MAX = 1000
+Y_MIN = -1000
+Y_MAX = 1000
+Z_MIN = -1000
+Z_MAX = 1000
+DimBoard = 1000  # EVEN BIGGER GRID
 
 # Variables para los patos
 patos = []
 objetos_pato = {}
 farm_models = {}
 previous_positions = {}
+smooth_positions = {}  # Para interpolación suave
 
 # Variables para el control del observador
 theta = 0.0
@@ -66,12 +67,13 @@ def inicializar_simulacion():
 def obtener_posiciones_patos():
     """Obtiene las posiciones actuales de los patos (GET /run)"""
     try:
-        response = requests.get("http://localhost:8000/run", timeout=1)
+        response = requests.get("http://localhost:8000/run", timeout=0.03)  # Very short timeout
         if response.status_code == 200:
             data = response.json()
             return data['ducks']
-    except Exception as e:
-        print(f"Error obteniendo posiciones: {e}")
+    except:
+        # Silent fail - just skip this update, interpolation will continue smoothly
+        pass
     return None
 
 def julia_to_opengl(julia_x, julia_y):
@@ -209,6 +211,7 @@ def Init():
         nuevo_pato.cargar_objetos(objetos_pato)
         patos.append(nuevo_pato)
         previous_positions[i+1] = (0, 0)
+        smooth_positions[i+1] = (0, 0)
     
     print(f"Creados {len(patos)} patos")
 
@@ -238,56 +241,29 @@ def display():
     glVertex3d(DimBoard, 0, -DimBoard)
     glEnd()
     
-    # Farm models - FIXED positions and rotations
-    if farm_models.get('granja'):
-        glPushMatrix()
-        glTranslatef(-200, 0, -150)
-        glRotatef(0, 0, 1, 0)  # Rotate to face correctly
-        glScalef(30, 30, 30)
-        farm_models['granja'].render()
-        glPopMatrix()
-
-    if farm_models.get('gallinero'):
-        glPushMatrix()
-        glTranslatef(150, 0, -180)
-        glRotatef(45, 0, 1, 0)
-        glScalef(25, 25, 25)
-        farm_models['gallinero'].render()
-        glPopMatrix()
-
+    # Farm models - TESTING: Windmill and main farm building
     if farm_models.get('molino'):
         glPushMatrix()
         glTranslatef(-180, 0, 150)
         glRotatef(0, 0, 1, 0)
-        glScalef(35, 35, 35)
+        glScalef(15, 15, 15)  # Same size as the farm building now
         farm_models['molino'].render()
         glPopMatrix()
 
-    if farm_models.get('sembradero'):
-        glPushMatrix()
-        glTranslatef(180, 0, 120)
-        glRotatef(0, 0, 1, 0)
-        glScalef(28, 28, 28)
-        farm_models['sembradero'].render()
-        glPopMatrix()
-
-    if farm_models.get('trigo'):
-        # Multiple wheat patches
-        positions = [(120, 0, 80), (150, 0, 100), (200, 0, 90), 
-                     (-150, 0, 80), (-120, 0, 100)]
-        for pos in positions:
-            glPushMatrix()
-            glTranslatef(*pos)
-            glScalef(15, 15, 15)
-            farm_models['trigo'].render()
-            glPopMatrix()
-
     if farm_models.get('farm'):
         glPushMatrix()
-        glTranslatef(0, 0, 0)
+        glTranslatef(0, 0, 0)  # Right on the green ground (Y=0)
         glRotatef(0, 0, 1, 0)
-        glScalef(40, 40, 40)
+        glScalef(15, 15, 15)  # Even smaller to ensure it fits completely
         farm_models['farm'].render()
+        glPopMatrix()
+
+    if farm_models.get('gallinero'):
+        glPushMatrix()
+        glTranslatef(800, 0, 10)  # Back right (opposite side from windmill)
+        glRotatef(45, 0, 1, 0)  # Slight rotation like original
+        glScalef(15, 15, 15)  # Same size as other buildings
+        farm_models['gallinero'].render()
         glPopMatrix()
     
     # Draw ducks
@@ -309,11 +285,21 @@ print("Usa flechas para rotar cámara. W/S para zoom. ESC para salir.")
 
 # Main loop
 last_julia_call = time.time()
-julia_call_frequency = 0.1  # Call Julia 10 times per second (slower for now)
+julia_call_frequency = 0.033  # Call Julia 30 times per second (smoother)
 clock = pygame.time.Clock()
+frame_count = 0
+last_fps_display = time.time()
 
 while not done:
     current_time = time.time()
+    frame_count += 1
+    
+    # Display FPS every second for debugging
+    if current_time - last_fps_display >= 1.0:
+        fps = frame_count / (current_time - last_fps_display)
+        print(f"FPS: {fps:.1f}")
+        frame_count = 0
+        last_fps_display = current_time
     
     # Process events
     for event in pygame.event.get():
@@ -355,6 +341,11 @@ while not done:
                 julia_pos = datos['pos']
                 
                 new_x, new_z = julia_to_opengl(julia_pos[0], julia_pos[1])
+                
+                # Initialize smooth position if not exists
+                if duck_id not in smooth_positions:
+                    smooth_positions[duck_id] = (new_x, new_z)
+                
                 old_x, old_z = previous_positions.get(duck_id, (new_x, new_z))
                 
                 dx = new_x - old_x
@@ -364,24 +355,43 @@ while not done:
                 
                 pato_index = duck_id - 1
                 if 0 <= pato_index < len(patos):
-                    patos[pato_index].x = new_x
-                    patos[pato_index].z = new_z
+                    # Store target position for interpolation
+                    previous_positions[duck_id] = (new_x, new_z)
                     
                     if is_moving:
                         angle = math.degrees(math.atan2(dx, dz))
                         patos[pato_index].angulo_rotacion = angle
-                    
-                    patos[pato_index].actualizar(moviendo=is_moving)
-                    previous_positions[duck_id] = (new_x, new_z)
     
-    # Update animations
-    for pato in patos:
-        pato.actualizar(moviendo=True)
+    # Smooth interpolation every frame (not just when calling Julia)
+    for duck_id in previous_positions:
+        pato_index = duck_id - 1
+        if 0 <= pato_index < len(patos):
+            target_x, target_z = previous_positions[duck_id]
+            current_x, current_z = smooth_positions.get(duck_id, (target_x, target_z))
+            
+            # Smooth interpolation with lerp factor
+            lerp_factor = 0.15  # Higher = more responsive, lower = smoother
+            smooth_x = current_x + (target_x - current_x) * lerp_factor
+            smooth_z = current_z + (target_z - current_z) * lerp_factor
+            
+            # Update smooth position
+            smooth_positions[duck_id] = (smooth_x, smooth_z)
+            
+            # Apply to pato
+            patos[pato_index].x = smooth_x
+            patos[pato_index].z = smooth_z
+            
+            # Check if moving for animation
+            distance = math.sqrt((target_x - current_x)**2 + (target_z - current_z)**2)
+            is_moving = distance > 2.0
+            patos[pato_index].actualizar(moviendo=is_moving)
+    
+    # Animation updates are now handled in the smooth interpolation loop above
 
     # Render
     display()
     pygame.display.flip()
     
-    clock.tick(60)
+    clock.tick(60)  # Back to 60 FPS for smooth movement
 
 pygame.quit()

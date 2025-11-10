@@ -20,7 +20,7 @@ function initialize_duck(id, dims)
 end
 
 # Create the model
-function initialize_model(;n_ducks=50, dims=(100, 100))
+function initialize_model(;n_ducks=10, dims=(100, 100))
     # Ensure dimensions are multiples of the default spacing (1.0)
     adjusted_dims = (ceil(Int, dims[1]), ceil(Int, dims[2]))
     space = ContinuousSpace(adjusted_dims, spacing=1.0)
