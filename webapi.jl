@@ -7,6 +7,7 @@ model = initialize_model(n_ducks=10, dims=(20, 15))
 
 route("/init", method = POST) do
     # Reset the model if needed
+    global model
     model = initialize_model(n_ducks=10, dims=(20, 15))
     
     ducks = []
@@ -17,7 +18,29 @@ route("/init", method = POST) do
         ))
     end
     
-    json(Dict("ducks" => ducks))
+    # Include initial farmer information
+    farmer = getproperty(model, :farmer)
+    farmer_data = Dict(
+        "pos" => [farmer.pos[1], farmer.pos[2]],
+        "feeding" => farmer.feeding
+    )
+    
+    json(Dict("ducks" => ducks, "farmer" => farmer_data))
+end
+
+route("/farmer", method = POST) do
+    try
+        farmer_data = jsonpayload()
+        farmer = getproperty(model, :farmer)
+        
+        # Update farmer position and feeding status
+        farmer.pos = SVector{2,Float64}(farmer_data["x"], farmer_data["y"])
+        farmer.feeding = farmer_data["feeding"]
+        
+        json(Dict("status" => "ok"))
+    catch e
+        json(Dict("status" => "error", "message" => string(e)))
+    end
 end
 
 route("/run") do
@@ -30,7 +53,14 @@ route("/run") do
         ))
     end
     
-    json(Dict("ducks" => ducks))
+    # Include farmer information in response
+    farmer = getproperty(model, :farmer)
+    farmer_data = Dict(
+        "pos" => [farmer.pos[1], farmer.pos[2]],
+        "feeding" => farmer.feeding
+    )
+    
+    json(Dict("ducks" => ducks, "farmer" => farmer_data))
 end
 
 Genie.config.run_as_server = true

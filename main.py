@@ -45,6 +45,12 @@ farm_models = {}
 previous_positions = {}
 smooth_positions = {}  # Para interpolación suave
 
+# Variables para el granjero
+farmer_x = 0.0
+farmer_z = 0.0
+farmer_feeding = False
+farmer_move_speed = 8.0
+
 # Variables para el control del observador
 theta = 0.0
 phi = 30.0  # Vertical angle
@@ -65,16 +71,16 @@ def inicializar_simulacion():
     return False
 
 def obtener_posiciones_patos():
-    """Obtiene las posiciones actuales de los patos (GET /run)"""
+    """Obtiene las posiciones actuales de los patos y granjero (GET /run)"""
     try:
         response = requests.get("http://localhost:8000/run", timeout=0.03)  # Very short timeout
         if response.status_code == 200:
             data = response.json()
-            return data['ducks']
+            return data.get('ducks'), data.get('farmer')
     except:
         # Silent fail - just skip this update, interpolation will continue smoothly
         pass
-    return None
+    return None, None
 
 def julia_to_opengl(julia_x, julia_y):
     """
@@ -83,6 +89,34 @@ def julia_to_opengl(julia_x, julia_y):
     opengl_x = (julia_x - 10.0) * 50.0  # Bigger scaling
     opengl_z = (julia_y - 7.5) * 50.0
     return opengl_x, opengl_z
+
+def opengl_to_julia(opengl_x, opengl_z):
+    """
+    Convierte coordenadas de OpenGL a Julia
+    """
+    julia_x = (opengl_x / 50.0) + 10.0
+    julia_y = (opengl_z / 50.0) + 7.5
+    return julia_x, julia_y
+
+def update_farmer_position(x, z, feeding):
+    """Envía la posición del granjero a Julia"""
+    try:
+        julia_x, julia_y = opengl_to_julia(x, z)
+        
+        # Mantener granjero dentro de los límites
+        julia_x = max(0, min(20, julia_x))
+        julia_y = max(0, min(15, julia_y))
+        
+        data = {
+            "x": julia_x,
+            "y": julia_y,
+            "feeding": feeding
+        }
+        
+        response = requests.post("http://localhost:8000/farmer", 
+                               json=data, timeout=0.03)
+    except:
+        pass  # Silent fail para mantener fluidez
 
 def Axis():
     glShadeModel(GL_FLAT)
@@ -228,6 +262,32 @@ def lookat():
     glLoadIdentity()
     gluLookAt(EYE_X, EYE_Y, EYE_Z, CENTER_X, CENTER_Y, CENTER_Z, UP_X, UP_Y, UP_Z)
 
+def draw_farmer():
+    """Dibuja el granjero como una figura simple"""
+    global farmer_x, farmer_z, farmer_feeding
+    
+    glPushMatrix()
+    glTranslatef(farmer_x, 15, farmer_z)  # 15 unidades de altura
+    
+    # Color diferente según si está dando de comer
+    if farmer_feeding:
+        glColor3f(0.0, 1.0, 0.0)  # Verde cuando da de comer
+    else:
+        glColor3f(0.8, 0.6, 0.4)  # Color piel/marrón normal
+    
+    # Dibujar cuerpo como cubo\n    glutSolidCube(12)
+    
+    # Dibujar "sombrero" o cabeza
+    glTranslatef(0, 8, 0)
+    if farmer_feeding:
+        glColor3f(1.0, 1.0, 0.0)  # Amarillo cuando da de comer (comida)
+    else:
+        glColor3f(0.6, 0.3, 0.1)  # Marrón para sombrero
+    
+    glutSolidCube(6)
+    
+    glPopMatrix()
+
 def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     Axis()
@@ -266,6 +326,9 @@ def display():
         farm_models['gallinero'].render()
         glPopMatrix()
     
+    # Draw farmer
+    draw_farmer()
+    
     # Draw ducks
     for pato in patos:
         pato.dibujar()
@@ -281,7 +344,13 @@ if not inicializar_simulacion():
     done = True
 
 print("Programa iniciado. 10 patos con flocking desde Julia!")
-print("Usa flechas para rotar cámara. W/S para zoom. ESC para salir.")
+print("Controles:")
+print("- Flechas: Rotar cámara")
+print("- W/S: Zoom")
+print("- A/D: Mover granjero izquierda/derecha")
+print("- Q/E: Mover granjero adelante/atrás") 
+print("- ESPACIO: Dar de comer a los patos")
+print("- ESC: Salir")
 
 # Main loop
 last_julia_call = time.time()
@@ -330,11 +399,32 @@ while not done:
         radius = min(1200, radius + 10)  # Zoom out
         lookat()
     
+    # Farmer controls (WASD for movement, SPACE for feeding)
+    if keys[pygame.K_a]:  # Move farmer left
+        farmer_x -= farmer_move_speed
+    if keys[pygame.K_d]:  # Move farmer right
+        farmer_x += farmer_move_speed
+    if keys[pygame.K_q]:  # Move farmer forward (changed from W to avoid conflict)
+        farmer_z -= farmer_move_speed
+    if keys[pygame.K_e]:  # Move farmer backward (changed from S to avoid conflict)
+        farmer_z += farmer_move_speed
+    if keys[pygame.K_SPACE]:  # Feed ducks
+        farmer_feeding = True
+    else:
+        farmer_feeding = False
+    
+    # Keep farmer within bounds
+    farmer_x = max(-400, min(400, farmer_x))
+    farmer_z = max(-300, min(300, farmer_z))
+    
+    # Update farmer position in Julia
+    update_farmer_position(farmer_x, farmer_z, farmer_feeding)
+    
     # Call Julia
     if current_time - last_julia_call >= julia_call_frequency:
         last_julia_call = current_time
         
-        datos_patos = obtener_posiciones_patos()
+        datos_patos, datos_granjero = obtener_posiciones_patos()
         if datos_patos:
             for datos in datos_patos:
                 duck_id = datos['id']

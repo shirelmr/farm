@@ -10,6 +10,14 @@ mutable struct Duck <: AbstractAgent
     speed::Float64          # Speed magnitude
 end
 
+# Farmer structure (not an agent, just a game entity)
+mutable struct Farmer
+    id::Int
+    pos::SVector{2,Float64}  # Position in the farm
+    feeding::Bool           # Whether farmer is feeding ducks
+    feed_radius::Float64    # Radius where ducks can be attracted to food
+end
+
 # Function to initialize a duck with random position and velocity
 function initialize_duck(id, dims)
     pos = SVector{2,Float64}(rand(2) .* dims)
@@ -24,10 +32,15 @@ function initialize_model(;n_ducks=10, dims=(100, 100))
     # Ensure dimensions are multiples of the default spacing (1.0)
     adjusted_dims = (ceil(Int, dims[1]), ceil(Int, dims[2]))
     space = ContinuousSpace(adjusted_dims, spacing=1.0)
+    # Initialize farmer at center
+    center_x = adjusted_dims[1] / 2
+    center_y = adjusted_dims[2] / 2
+    farmer = Farmer(999, SVector{2,Float64}(center_x, center_y), false, 8.0)
+    
     model = AgentBasedModel(
         Duck, 
         space; 
-        properties = Dict{Symbol,Any}(:dims => adjusted_dims),
+        properties = Dict{Symbol,Any}(:dims => adjusted_dims, :farmer => farmer),
         agent_step! = agent_step!
     )
     
@@ -35,6 +48,8 @@ function initialize_model(;n_ducks=10, dims=(100, 100))
     for i in 1:n_ducks
         add_agent!(initialize_duck(i, adjusted_dims), model)
     end
+    
+
     
     return model
 end
@@ -83,11 +98,31 @@ function agent_step!(duck::Duck, model)
     alignment = alignment_vector(duck, model, neighbors)
     separation = separation_vector(duck, model, neighbors)
     
-    # Combine forces with different weights
-    new_vel = duck.vel .* 0.5 .+    # Current velocity (inertia)
-              cohesion .* 0.1 .+     # Cohesion force
-              alignment .* 0.3 .+     # Alignment force
-              separation .* 0.2       # Separation force
+    # Calculate farmer interaction
+    farmer = getproperty(model, :farmer)
+    farmer_force = SVector{2,Float64}(0.0, 0.0)
+    farmer_dist = norm(duck.pos .- farmer.pos)
+    
+    if farmer.feeding && farmer_dist < farmer.feed_radius
+        # Attract to farmer when feeding (stronger attraction)
+        direction_to_farmer = farmer.pos .- duck.pos
+        if norm(direction_to_farmer) > 0
+            farmer_force = (direction_to_farmer ./ norm(direction_to_farmer)) .* 0.4
+        end
+    elseif farmer_dist < 4.0 && !farmer.feeding
+        # Slight avoidance when farmer is close but not feeding
+        direction_from_farmer = duck.pos .- farmer.pos
+        if norm(direction_from_farmer) > 0
+            farmer_force = (direction_from_farmer ./ norm(direction_from_farmer)) .* 0.1
+        end
+    end
+    
+    # Combine forces with different weights (reduced inertia for more responsiveness)
+    new_vel = duck.vel .* 0.4 .+        # Current velocity (reduced inertia)
+              cohesion .* 0.08 .+       # Cohesion force (slightly reduced)
+              alignment .* 0.25 .+      # Alignment force (slightly reduced)
+              separation .* 0.15 .+     # Separation force (slightly reduced)
+              farmer_force              # Farmer interaction force
     
     # Normalize and scale to maintain constant speed
     if norm(new_vel) > 0
