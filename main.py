@@ -10,6 +10,7 @@ import time
 
 from objloader import *
 from pato import Pato
+from granjero import Granjero
 
 # BIGGER WINDOW
 screen_width = 1400
@@ -46,12 +47,7 @@ previous_positions = {}
 smooth_positions = {}  # Para interpolación suave
 
 # Variables para el granjero
-farmer_x = 0.0
-farmer_z = 0.0
-farmer_feeding = False
-farmer_collecting_wheat = False
-farmer_herding_mode = False
-farmer_move_speed = 8.0
+granjero = None  # Se inicializará en Init()
 
 def print_controls():
     """Imprime los controles del granjero en consola"""
@@ -162,7 +158,7 @@ def Axis():
     glLineWidth(1.0)
 
 def Init():
-    global patos, objetos_pato, farm_models
+    global patos, objetos_pato, farm_models, granjero
     
     screen = pygame.display.set_mode(
         (screen_width, screen_height), DOUBLEBUF | OPENGL)
@@ -216,48 +212,94 @@ def Init():
     print("Cargando modelos de la granja...")
     
     try:
-        farm_models['farm'] = OBJ("farm.obj", swapyz=False)  # Try without swapyz
+        farm_models['farm'] = OBJ("farm.obj", swapyz=False)
         farm_models['farm'].generate()
         print("✓ farm.obj cargado")
-    except:
-        print("✗ No se pudo cargar farm.obj")
+    except Exception as e:
+        print(f"✗ No se pudo cargar farm.obj: {e}")
     
     try:
         farm_models['granja'] = OBJ("granja.obj", swapyz=False)
         farm_models['granja'].generate()
         print("✓ granja.obj cargado")
-    except:
-        print("✗ No se pudo cargar granja.obj")
+    except Exception as e:
+        print(f"✗ No se pudo cargar granja.obj: {e}")
     
     try:
         farm_models['gallinero'] = OBJ("gallinero.obj", swapyz=False)
         farm_models['gallinero'].generate()
         print("✓ gallinero.obj cargado")
-    except:
-        print("✗ No se pudo cargar gallinero.obj")
+    except Exception as e:
+        print(f"✗ No se pudo cargar gallinero.obj: {e}")
     
     try:
         farm_models['molino'] = OBJ("molino.obj", swapyz=False)
         farm_models['molino'].generate()
         print("✓ molino.obj cargado")
-    except:
-        print("✗ No se pudo cargar molino.obj")
+    except Exception as e:
+        print(f"✗ No se pudo cargar molino.obj: {e}")
     
     try:
         farm_models['trigo'] = OBJ("trigo.obj", swapyz=False)
         farm_models['trigo'].generate()
         print("✓ trigo.obj cargado")
-    except:
-        print("✗ No se pudo cargar trigo.obj")
+    except Exception as e:
+        print(f"✗ No se pudo cargar trigo.obj: {e}")
     
     try:
         farm_models['sembradero'] = OBJ("sembradero1.obj", swapyz=False)
         farm_models['sembradero'].generate()
         print("✓ sembradero1.obj cargado")
-    except:
-        print("✗ No se pudo cargar sembradero1.obj")
+    except Exception as e:
+        print(f"✗ No se pudo cargar sembradero1.obj: {e}")
     
     print("Modelos de granja cargados!")
+    
+    # Cargar modelos del granjero
+    print("Cargando modelos del granjero...")
+    objetos_granjero = {}
+    
+    try:
+        objetos_granjero['farmer_body'] = OBJ("granjero/farmer.obj", swapyz=False)
+        objetos_granjero['farmer_body'].generate()
+        print("✓ farmer.obj cargado")
+    except Exception as e:
+        print(f"✗ No se pudo cargar farmer.obj: {e}")
+    
+    try:
+        objetos_granjero['farmer_arm_right'] = OBJ("granjero/arm_derecho.obj", swapyz=False)
+        objetos_granjero['farmer_arm_right'].generate()
+        print("✓ arm_derecho.obj cargado")
+    except Exception as e:
+        print(f"✗ No se pudo cargar arm_derecho.obj: {e}")
+    
+    try:
+        objetos_granjero['farmer_arm_left'] = OBJ("granjero/arm_izquierdo.obj", swapyz=False)
+        objetos_granjero['farmer_arm_left'].generate()
+        print("✓ arm_izquierdo.obj cargado")
+    except Exception as e:
+        print(f"✗ No se pudo cargar arm_izquierdo.obj: {e}")
+    
+    try:
+        objetos_granjero['farmer_leg_right'] = OBJ("granjero/pie_derecho.obj", swapyz=False)
+        objetos_granjero['farmer_leg_right'].generate()
+        print("✓ pie_derecho.obj cargado")
+    except Exception as e:
+        print(f"✗ No se pudo cargar pie_derecho.obj: {e}")
+    
+    try:
+        objetos_granjero['farmer_leg_left'] = OBJ("granjero/pie_izquierdo.obj", swapyz=False)
+        objetos_granjero['farmer_leg_left'].generate()
+        print("✓ pie_izquierdo.obj cargado")
+    except Exception as e:
+        print(f"✗ No se pudo cargar pie_izquierdo.obj: {e}")
+    
+    print("Modelos del granjero cargados!")
+    
+    # Crear granjero
+    granjero = Granjero(0.0, 0.0, velocidad=8.0)
+    granjero.cargar_objetos(objetos_granjero)
+    print("Granjero creado!")
     
     # Crear 10 patos
     for i in range(10):
@@ -282,43 +324,6 @@ def lookat():
     glLoadIdentity()
     gluLookAt(EYE_X, EYE_Y, EYE_Z, CENTER_X, CENTER_Y, CENTER_Z, UP_X, UP_Y, UP_Z)
 
-def draw_farmer():
-    """Dibuja el granjero usando modelo 3D o cubo simple según disponibilidad"""
-    global farmer_x, farmer_z, farmer_feeding, farmer_collecting_wheat, farmer_herding_mode, farm_models
-    global farmer_rotation, farmer_animation_time
-    global farmer_rotation, farmer_animation_time
-    
-    glPushMatrix()
-    glTranslatef(farmer_x, 15, farmer_z)  # 15 unidades de altura
-    
-    # Color diferente según estado
-    if farmer_feeding:
-        glColor3f(0.0, 1.0, 0.0)  # Verde cuando da de comer
-    elif farmer_collecting_wheat:
-        glColor3f(1.0, 1.0, 0.0)  # Amarillo cuando recolecta trigo
-    elif farmer_herding_mode:
-        glColor3f(0.0, 0.5, 1.0)  # Azul cuando está en modo pastor
-    else:
-        glColor3f(0.8, 0.6, 0.4)  # Color piel/marrón normal
-    
-    # Dibujar cuerpo como cubo
-    glutSolidCube(12)
-    
-    # Dibujar "sombrero" o cabeza
-    glTranslatef(0, 8, 0)
-    if farmer_feeding:
-        glColor3f(1.0, 1.0, 0.0)  # Amarillo cuando da de comer (comida)
-    elif farmer_collecting_wheat:
-        glColor3f(0.8, 0.7, 0.2)  # Dorado para trigo
-    elif farmer_herding_mode:
-        glColor3f(0.2, 0.3, 0.8)  # Azul oscuro para modo pastor
-    else:
-        glColor3f(0.6, 0.3, 0.1)  # Marrón para sombrero
-    
-    glutSolidCube(6)
-    
-    glPopMatrix()
-
 def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     Axis()
@@ -332,33 +337,34 @@ def display():
     glVertex3d(DimBoard, 0, -DimBoard)
     glEnd()
     
-    # Farm models - TESTING: Windmill and main farm building
+    # Farm models
     if farm_models.get('molino'):
         glPushMatrix()
         glTranslatef(-180, 0, 150)
         glRotatef(0, 0, 1, 0)
-        glScalef(15, 15, 15)  # Same size as the farm building now
+        glScalef(15, 15, 15)
         farm_models['molino'].render()
         glPopMatrix()
 
     if farm_models.get('farm'):
         glPushMatrix()
-        glTranslatef(0, 0, 0)  # Right on the green ground (Y=0)
+        glTranslatef(0, 0, 0)
         glRotatef(0, 0, 1, 0)
-        glScalef(15, 15, 15)  # Even smaller to ensure it fits completely
+        glScalef(15, 15, 15)
         farm_models['farm'].render()
         glPopMatrix()
 
     if farm_models.get('gallinero'):
         glPushMatrix()
-        glTranslatef(800, 0, 10)  # Back right (opposite side from windmill)
-        glRotatef(45, 0, 1, 0)  # Slight rotation like original
-        glScalef(15, 15, 15)  # Same size as other buildings
+        glTranslatef(800, 0, 10)
+        glRotatef(45, 0, 1, 0)
+        glScalef(15, 15, 15)
         farm_models['gallinero'].render()
         glPopMatrix()
     
     # Draw farmer
-    draw_farmer()
+    if granjero:
+        granjero.dibujar()
     
     # Draw ducks
     for pato in patos:
@@ -381,6 +387,8 @@ print("- W/S: Zoom")
 print("- A/D: Mover granjero izquierda/derecha")
 print("- Q/E: Mover granjero adelante/atrás") 
 print("- ESPACIO: Dar de comer a los patos")
+print("- T: Recolectar trigo")
+print("- H: Modo pastor")
 print("- ESC: Salir")
 
 # Main loop
@@ -409,6 +417,10 @@ while not done:
             if event.key == pygame.K_ESCAPE:
                 done = True
     
+    # Guardar posición anterior del granjero
+    old_x = granjero.x
+    old_z = granjero.z
+    
     # Camera controls
     keys = pygame.key.get_pressed()
     if keys[pygame.K_RIGHT]:
@@ -431,37 +443,34 @@ while not done:
         lookat()
     
     # Farmer controls
-    if keys[pygame.K_a]:  # Move farmer left
-        farmer_x -= farmer_move_speed
-    if keys[pygame.K_d]:  # Move farmer right
-        farmer_x += farmer_move_speed
-    if keys[pygame.K_q]:  # Move farmer forward
-        farmer_z -= farmer_move_speed
-    if keys[pygame.K_e]:  # Move farmer backward
-        farmer_z += farmer_move_speed
+    dx = 0
+    dz = 0
+    
+    if keys[pygame.K_a]:  # Izquierda
+        dx -= granjero.velocidad
+    if keys[pygame.K_d]:  # Derecha
+        dx += granjero.velocidad
+    if keys[pygame.K_q]:  # Adelante
+        dz -= granjero.velocidad
+    if keys[pygame.K_e]:  # Atrás
+        dz += granjero.velocidad
+    
+    # Mover granjero
+    if dx != 0 or dz != 0:
+        granjero.mover(dx, dz)
+    
+    # Detectar movimiento
+    moviendo = (abs(granjero.x - old_x) > 0.1 or abs(granjero.z - old_z) > 0.1)
+    granjero.actualizar(moviendo=moviendo)
     
     # Farmer actions
-    if keys[pygame.K_SPACE]:  # Feed ducks
-        farmer_feeding = True
-    else:
-        farmer_feeding = False
-    
-    if keys[pygame.K_t]:  # Collect wheat (T for Trigo)
-        farmer_collecting_wheat = True
-    else:
-        farmer_collecting_wheat = False
-        
-    if keys[pygame.K_h]:  # Herding mode (H for Herd)
-        farmer_herding_mode = True
-    else:
-        farmer_herding_mode = False
-    
-    # Keep farmer within bounds
-    farmer_x = max(-400, min(400, farmer_x))
-    farmer_z = max(-300, min(300, farmer_z))
+    granjero.feeding = keys[pygame.K_SPACE]
+    granjero.collecting_wheat = keys[pygame.K_t]
+    granjero.herding_mode = keys[pygame.K_h]
     
     # Update farmer position in Julia
-    update_farmer_position(farmer_x, farmer_z, farmer_feeding, farmer_collecting_wheat, farmer_herding_mode)
+    update_farmer_position(granjero.x, granjero.z, granjero.feeding, 
+                          granjero.collecting_wheat, granjero.herding_mode)
     
     # Call Julia
     if current_time - last_julia_call >= julia_call_frequency:
@@ -518,8 +527,6 @@ while not done:
             distance = math.sqrt((target_x - current_x)**2 + (target_z - current_z)**2)
             is_moving = distance > 2.0
             patos[pato_index].actualizar(moviendo=is_moving)
-    
-    # Animation updates are now handled in the smooth interpolation loop above
 
     # Render
     display()
