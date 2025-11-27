@@ -49,7 +49,24 @@ smooth_positions = {}  # Para interpolación suave
 farmer_x = 0.0
 farmer_z = 0.0
 farmer_feeding = False
+farmer_collecting_wheat = False
+farmer_herding_mode = False
 farmer_move_speed = 8.0
+
+def print_controls():
+    """Imprime los controles del granjero en consola"""
+    print("\n=== CONTROLES DEL GRANJERO ===")
+    print("Movimiento:")
+    print("  Q/E - Adelante/Atrás")
+    print("  A/D - Izquierda/Derecha")
+    print("\nAcciones:")
+    print("  SPACE - Alimentar patos (verde)")
+    print("  T - Recolectar trigo (amarillo)")
+    print("  H - Modo pastor/corral (azul)")
+    print("\nCámara:")
+    print("  Flechas - Rotar cámara")
+    print("  W/S - Zoom in/out")
+    print("===============================\n")
 
 # Variables para el control del observador
 theta = 0.0
@@ -57,6 +74,7 @@ phi = 30.0  # Vertical angle
 radius = 700.0  # Camera distance
 
 pygame.init()
+print_controls()
 
 # Cliente REST API
 def inicializar_simulacion():
@@ -98,7 +116,7 @@ def opengl_to_julia(opengl_x, opengl_z):
     julia_y = (opengl_z / 50.0) + 7.5
     return julia_x, julia_y
 
-def update_farmer_position(x, z, feeding):
+def update_farmer_position(x, z, feeding, collecting_wheat=False, herding_mode=False):
     """Envía la posición del granjero a Julia"""
     try:
         julia_x, julia_y = opengl_to_julia(x, z)
@@ -110,7 +128,9 @@ def update_farmer_position(x, z, feeding):
         data = {
             "x": julia_x,
             "y": julia_y,
-            "feeding": feeding
+            "feeding": feeding,
+            "collecting_wheat": collecting_wheat,
+            "herding_mode": herding_mode
         }
         
         response = requests.post("http://localhost:8000/farmer", 
@@ -263,24 +283,35 @@ def lookat():
     gluLookAt(EYE_X, EYE_Y, EYE_Z, CENTER_X, CENTER_Y, CENTER_Z, UP_X, UP_Y, UP_Z)
 
 def draw_farmer():
-    """Dibuja el granjero como una figura simple"""
-    global farmer_x, farmer_z, farmer_feeding
+    """Dibuja el granjero usando modelo 3D o cubo simple según disponibilidad"""
+    global farmer_x, farmer_z, farmer_feeding, farmer_collecting_wheat, farmer_herding_mode, farm_models
+    global farmer_rotation, farmer_animation_time
+    global farmer_rotation, farmer_animation_time
     
     glPushMatrix()
     glTranslatef(farmer_x, 15, farmer_z)  # 15 unidades de altura
     
-    # Color diferente según si está dando de comer
+    # Color diferente según estado
     if farmer_feeding:
         glColor3f(0.0, 1.0, 0.0)  # Verde cuando da de comer
+    elif farmer_collecting_wheat:
+        glColor3f(1.0, 1.0, 0.0)  # Amarillo cuando recolecta trigo
+    elif farmer_herding_mode:
+        glColor3f(0.0, 0.5, 1.0)  # Azul cuando está en modo pastor
     else:
         glColor3f(0.8, 0.6, 0.4)  # Color piel/marrón normal
     
-    # Dibujar cuerpo como cubo\n    glutSolidCube(12)
+    # Dibujar cuerpo como cubo
+    glutSolidCube(12)
     
     # Dibujar "sombrero" o cabeza
     glTranslatef(0, 8, 0)
     if farmer_feeding:
         glColor3f(1.0, 1.0, 0.0)  # Amarillo cuando da de comer (comida)
+    elif farmer_collecting_wheat:
+        glColor3f(0.8, 0.7, 0.2)  # Dorado para trigo
+    elif farmer_herding_mode:
+        glColor3f(0.2, 0.3, 0.8)  # Azul oscuro para modo pastor
     else:
         glColor3f(0.6, 0.3, 0.1)  # Marrón para sombrero
     
@@ -399,26 +430,38 @@ while not done:
         radius = min(1200, radius + 10)  # Zoom out
         lookat()
     
-    # Farmer controls (WASD for movement, SPACE for feeding)
+    # Farmer controls
     if keys[pygame.K_a]:  # Move farmer left
         farmer_x -= farmer_move_speed
     if keys[pygame.K_d]:  # Move farmer right
         farmer_x += farmer_move_speed
-    if keys[pygame.K_q]:  # Move farmer forward (changed from W to avoid conflict)
+    if keys[pygame.K_q]:  # Move farmer forward
         farmer_z -= farmer_move_speed
-    if keys[pygame.K_e]:  # Move farmer backward (changed from S to avoid conflict)
+    if keys[pygame.K_e]:  # Move farmer backward
         farmer_z += farmer_move_speed
+    
+    # Farmer actions
     if keys[pygame.K_SPACE]:  # Feed ducks
         farmer_feeding = True
     else:
         farmer_feeding = False
+    
+    if keys[pygame.K_t]:  # Collect wheat (T for Trigo)
+        farmer_collecting_wheat = True
+    else:
+        farmer_collecting_wheat = False
+        
+    if keys[pygame.K_h]:  # Herding mode (H for Herd)
+        farmer_herding_mode = True
+    else:
+        farmer_herding_mode = False
     
     # Keep farmer within bounds
     farmer_x = max(-400, min(400, farmer_x))
     farmer_z = max(-300, min(300, farmer_z))
     
     # Update farmer position in Julia
-    update_farmer_position(farmer_x, farmer_z, farmer_feeding)
+    update_farmer_position(farmer_x, farmer_z, farmer_feeding, farmer_collecting_wheat, farmer_herding_mode)
     
     # Call Julia
     if current_time - last_julia_call >= julia_call_frequency:

@@ -22,7 +22,9 @@ route("/init", method = POST) do
     farmer = getproperty(model, :farmer)
     farmer_data = Dict(
         "pos" => [farmer.pos[1], farmer.pos[2]],
-        "feeding" => farmer.feeding
+        "feeding" => farmer.feeding,
+        "collecting_wheat" => farmer.collecting_wheat,
+        "herding_mode" => farmer.herding_mode
     )
     
     json(Dict("ducks" => ducks, "farmer" => farmer_data))
@@ -33,9 +35,11 @@ route("/farmer", method = POST) do
         farmer_data = jsonpayload()
         farmer = getproperty(model, :farmer)
         
-        # Update farmer position and feeding status
+        # Update farmer position and all status flags
         farmer.pos = SVector{2,Float64}(farmer_data["x"], farmer_data["y"])
-        farmer.feeding = farmer_data["feeding"]
+        farmer.feeding = get(farmer_data, "feeding", false)
+        farmer.collecting_wheat = get(farmer_data, "collecting_wheat", false)
+        farmer.herding_mode = get(farmer_data, "herding_mode", false)
         
         json(Dict("status" => "ok"))
     catch e
@@ -57,7 +61,9 @@ route("/run") do
     farmer = getproperty(model, :farmer)
     farmer_data = Dict(
         "pos" => [farmer.pos[1], farmer.pos[2]],
-        "feeding" => farmer.feeding
+        "feeding" => farmer.feeding,
+        "collecting_wheat" => farmer.collecting_wheat,
+        "herding_mode" => farmer.herding_mode
     )
     
     json(Dict("ducks" => ducks, "farmer" => farmer_data))

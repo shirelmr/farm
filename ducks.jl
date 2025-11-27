@@ -16,6 +16,9 @@ mutable struct Farmer
     pos::SVector{2,Float64}  # Position in the farm
     feeding::Bool           # Whether farmer is feeding ducks
     feed_radius::Float64    # Radius where ducks can be attracted to food
+    collecting_wheat::Bool  # Whether farmer is collecting wheat
+    herding_mode::Bool      # Whether farmer is in herding/corral mode
+    scare_radius::Float64   # Radius within which ducks get scared when not feeding
 end
 
 # Function to initialize a duck with random position and velocity
@@ -35,7 +38,7 @@ function initialize_model(;n_ducks=10, dims=(100, 100))
     # Initialize farmer at center
     center_x = adjusted_dims[1] / 2
     center_y = adjusted_dims[2] / 2
-    farmer = Farmer(999, SVector{2,Float64}(center_x, center_y), false, 8.0)
+    farmer = Farmer(999, SVector{2,Float64}(center_x, center_y), false, 8.0, false, false, 5.0)
     
     model = AgentBasedModel(
         Duck, 
@@ -107,13 +110,27 @@ function agent_step!(duck::Duck, model)
         # Attract to farmer when feeding (stronger attraction)
         direction_to_farmer = farmer.pos .- duck.pos
         if norm(direction_to_farmer) > 0
-            farmer_force = (direction_to_farmer ./ norm(direction_to_farmer)) .* 0.4
+            farmer_force = (direction_to_farmer ./ norm(direction_to_farmer)) .* 0.5
         end
-    elseif farmer_dist < 4.0 && !farmer.feeding
-        # Slight avoidance when farmer is close but not feeding
+    elseif farmer.herding_mode && farmer_dist < farmer.feed_radius * 1.5
+        # In herding mode, ducks follow farmer at moderate distance
+        direction_to_farmer = farmer.pos .- duck.pos
+        if norm(direction_to_farmer) > 0
+            # Follow but maintain some distance
+            target_distance = 3.0
+            if farmer_dist > target_distance
+                farmer_force = (direction_to_farmer ./ norm(direction_to_farmer)) .* 0.3
+            elseif farmer_dist < target_distance * 0.5
+                farmer_force = -(direction_to_farmer ./ norm(direction_to_farmer)) .* 0.2
+            end
+        end
+    elseif farmer_dist < farmer.scare_radius && !farmer.feeding && !farmer.herding_mode
+        # Scared behavior when farmer is close but not feeding or herding
         direction_from_farmer = duck.pos .- farmer.pos
         if norm(direction_from_farmer) > 0
-            farmer_force = (direction_from_farmer ./ norm(direction_from_farmer)) .* 0.1
+            # Stronger scare reaction, ducks run away faster
+            scare_intensity = max(0.1, (farmer.scare_radius - farmer_dist) / farmer.scare_radius)
+            farmer_force = (direction_from_farmer ./ norm(direction_from_farmer)) .* (0.3 * scare_intensity)
         end
     end
     
