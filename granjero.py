@@ -181,21 +181,31 @@ class Granjero:
             self.obj_arm_left.render()
             glPopMatrix()
         
-        # Piernas - SUPER SUBTLE walking animation
+        # Piernas - Animación de caminar realista
         if self.moviendo:
-            leg_swing = math.sin(self.tiempo_animacion) * 3  # SUPER subtle - only 3 degrees!
+            # Usar tiempo de animación más rápido para caminar natural
+            walk_cycle = self.tiempo_animacion * 2  # Más rápido
+            leg_swing = math.sin(walk_cycle) * 25  # Más movimiento - 25 grados
         else:
             leg_swing = 0
         
+        # Pierna derecha - con pivote en la cadera
         if self.obj_leg_right:
             glPushMatrix()
-            glRotatef(leg_swing, 1, 0, 0)  # Tiny forward/back
+            # Mover al punto de pivote (cadera)
+            glTranslatef(0.3, 0.8, 0)  # Posición aproximada de la cadera derecha
+            glRotatef(leg_swing, 1, 0, 0)  # Rotación hacia adelante/atrás
+            glTranslatef(-0.3, -0.8, 0)  # Regresar al origen
             self.obj_leg_right.render()
             glPopMatrix()
         
+        # Pierna izquierda - opuesta a la derecha
         if self.obj_leg_left:
             glPushMatrix()
-            glRotatef(-leg_swing, 1, 0, 0)  # Opposite leg
+            # Mover al punto de pivote (cadera)
+            glTranslatef(-0.3, 0.8, 0)  # Posición aproximada de la cadera izquierda
+            glRotatef(-leg_swing, 1, 0, 0)  # Rotación opuesta
+            glTranslatef(0.3, -0.8, 0)  # Regresar al origen
             self.obj_leg_left.render()
             glPopMatrix()
         
