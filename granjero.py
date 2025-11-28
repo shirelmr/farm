@@ -184,28 +184,28 @@ class Granjero:
         # Piernas - Animación de caminar realista
         if self.moviendo:
             # Usar tiempo de animación más rápido para caminar natural
-            walk_cycle = self.tiempo_animacion * 2  # Más rápido
-            leg_swing = math.sin(walk_cycle) * 25  # Más movimiento - 25 grados
+            walk_cycle = self.tiempo_animacion * 4  # Mucho más rápido - de 2 a 4
+            leg_swing = math.sin(walk_cycle) * 12  # Movimiento más sutil - 12 grados
         else:
             leg_swing = 0
         
-        # Pierna derecha - con pivote en la cadera
+        # Pierna derecha - con pivote en la cadera, más cerca del cuerpo
         if self.obj_leg_right:
             glPushMatrix()
-            # Mover al punto de pivote (cadera)
-            glTranslatef(0.3, 0.8, 0)  # Posición aproximada de la cadera derecha
+            # Mover al punto de pivote (cadera) - más cerca del centro
+            glTranslatef(0.15, 0.8, 0)  # Posición más cerca del cuerpo
             glRotatef(leg_swing, 1, 0, 0)  # Rotación hacia adelante/atrás
-            glTranslatef(-0.3, -0.8, 0)  # Regresar al origen
+            glTranslatef(-0.15, -0.8, 0)  # Regresar al origen
             self.obj_leg_right.render()
             glPopMatrix()
         
-        # Pierna izquierda - opuesta a la derecha
+        # Pierna izquierda - opuesta a la derecha, más cerca del cuerpo
         if self.obj_leg_left:
             glPushMatrix()
-            # Mover al punto de pivote (cadera)
-            glTranslatef(-0.3, 0.8, 0)  # Posición aproximada de la cadera izquierda
+            # Mover al punto de pivote (cadera) - más cerca del centro
+            glTranslatef(-0.15, 0.8, 0)  # Posición más cerca del cuerpo
             glRotatef(-leg_swing, 1, 0, 0)  # Rotación opuesta
-            glTranslatef(0.3, -0.8, 0)  # Regresar al origen
+            glTranslatef(0.15, -0.8, 0)  # Regresar al origen
             self.obj_leg_left.render()
             glPopMatrix()
         
