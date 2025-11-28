@@ -19,6 +19,7 @@ mutable struct Farmer
     collecting_wheat::Bool  # Whether farmer is collecting wheat
     herding_mode::Bool      # Whether farmer is in herding/corral mode
     scare_radius::Float64   # Radius within which ducks get scared when not feeding
+    collision_radius::Float64  # NEW: Hard collision radius - ducks can't enter this
 end
 
 # Function to initialize a duck with random position and velocity
@@ -35,10 +36,11 @@ function initialize_model(;n_ducks=10, dims=(100, 100))
     # Ensure dimensions are multiples of the default spacing (1.0)
     adjusted_dims = (ceil(Int, dims[1]), ceil(Int, dims[2]))
     space = ContinuousSpace(adjusted_dims, spacing=1.0)
-    # Initialize farmer at center
+    # Initialize farmer at center with collision radius
     center_x = adjusted_dims[1] / 2
     center_y = adjusted_dims[2] / 2
-    farmer = Farmer(999, SVector{2,Float64}(center_x, center_y), false, 8.0, false, false, 5.0)
+    # Added collision_radius = 2.0 (ducks can't get closer than this)
+    farmer = Farmer(999, SVector{2,Float64}(center_x, center_y), false, 8.0, false, false, 5.0, 2.0)
     
     model = AgentBasedModel(
         Duck, 
@@ -51,8 +53,6 @@ function initialize_model(;n_ducks=10, dims=(100, 100))
     for i in 1:n_ducks
         add_agent!(initialize_duck(i, adjusted_dims), model)
     end
-    
-
     
     return model
 end
@@ -106,17 +106,31 @@ function agent_step!(duck::Duck, model)
     farmer_force = SVector{2,Float64}(0.0, 0.0)
     farmer_dist = norm(duck.pos .- farmer.pos)
     
+    # ===== COLLISION AVOIDANCE (always active) =====
+    collision_force = SVector{2,Float64}(0.0, 0.0)
+    if farmer_dist < farmer.collision_radius * 2  # Start avoiding before hitting
+        direction_from_farmer = duck.pos .- farmer.pos
+        if norm(direction_from_farmer) > 0.01
+            # Stronger force the closer we get (inverse square)
+            intensity = ((farmer.collision_radius * 2) - farmer_dist) / farmer.collision_radius
+            intensity = clamp(intensity, 0.0, 3.0)  # Cap the intensity
+            collision_force = (direction_from_farmer ./ norm(direction_from_farmer)) .* intensity
+        end
+    end
+    
+    # ===== BEHAVIOR FORCES =====
     if farmer.feeding && farmer_dist < farmer.feed_radius
-        # Attract to farmer when feeding (stronger attraction)
-        direction_to_farmer = farmer.pos .- duck.pos
-        if norm(direction_to_farmer) > 0
-            farmer_force = (direction_to_farmer ./ norm(direction_to_farmer)) .* 0.5
+        # Attract to farmer when feeding, but not too close
+        if farmer_dist > farmer.collision_radius * 1.5
+            direction_to_farmer = farmer.pos .- duck.pos
+            if norm(direction_to_farmer) > 0
+                farmer_force = (direction_to_farmer ./ norm(direction_to_farmer)) .* 0.5
+            end
         end
     elseif farmer.herding_mode && farmer_dist < farmer.feed_radius * 1.5
         # In herding mode, ducks follow farmer at moderate distance
         direction_to_farmer = farmer.pos .- duck.pos
         if norm(direction_to_farmer) > 0
-            # Follow but maintain some distance
             target_distance = 3.0
             if farmer_dist > target_distance
                 farmer_force = (direction_to_farmer ./ norm(direction_to_farmer)) .* 0.3
@@ -128,18 +142,18 @@ function agent_step!(duck::Duck, model)
         # Scared behavior when farmer is close but not feeding or herding
         direction_from_farmer = duck.pos .- farmer.pos
         if norm(direction_from_farmer) > 0
-            # Stronger scare reaction, ducks run away faster
             scare_intensity = max(0.1, (farmer.scare_radius - farmer_dist) / farmer.scare_radius)
             farmer_force = (direction_from_farmer ./ norm(direction_from_farmer)) .* (0.3 * scare_intensity)
         end
     end
     
-    # Combine forces with different weights (reduced inertia for more responsiveness)
-    new_vel = duck.vel .* 0.4 .+        # Current velocity (reduced inertia)
-              cohesion .* 0.08 .+       # Cohesion force (slightly reduced)
-              alignment .* 0.25 .+      # Alignment force (slightly reduced)
-              separation .* 0.15 .+     # Separation force (slightly reduced)
-              farmer_force              # Farmer interaction force
+    # Combine forces with different weights
+    new_vel = duck.vel .* 0.4 .+        # Current velocity
+              cohesion .* 0.08 .+       # Cohesion force
+              alignment .* 0.25 .+      # Alignment force
+              separation .* 0.15 .+     # Separation force
+              farmer_force .+           # Farmer interaction force
+              collision_force           # NEW: Collision avoidance (strong!)
     
     # Normalize and scale to maintain constant speed
     if norm(new_vel) > 0
@@ -149,6 +163,22 @@ function agent_step!(duck::Duck, model)
     # Update duck's velocity and position
     duck.vel = new_vel
     new_pos = duck.pos .+ duck.vel
+    
+    # ===== HARD COLLISION CHECK =====
+    # If new position would be inside farmer, push duck out
+    new_farmer_dist = norm(new_pos .- farmer.pos)
+    if new_farmer_dist < farmer.collision_radius
+        # Push duck to the edge of collision radius
+        direction_from_farmer = new_pos .- farmer.pos
+        if norm(direction_from_farmer) > 0.01
+            direction_from_farmer = direction_from_farmer ./ norm(direction_from_farmer)
+        else
+            # Duck is exactly on farmer, pick random direction
+            angle = 2π * rand()
+            direction_from_farmer = SVector{2,Float64}(cos(angle), sin(angle))
+        end
+        new_pos = farmer.pos .+ direction_from_farmer .* farmer.collision_radius
+    end
     
     # Wrap around boundaries using the space's extent
     dims = abmspace(model).extent

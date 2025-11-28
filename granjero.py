@@ -5,7 +5,7 @@ from OpenGL.GLU import *
 class Granjero:
     def __init__(self, x, z, velocidad=8.0):
         self.x = x
-        self.y = 0  # ← AL NIVEL DEL SUELO (era 100)
+        self.y = 0  # AL NIVEL DEL SUELO
         self.z = z
         self.velocidad = velocidad
         self.angulo_rotacion = 0
@@ -23,9 +23,9 @@ class Granjero:
         # Animación de brazos para acciones
         self.feeding_arm_angle = 0.0
         self.feeding_arm_speed = 4.0
-        self.arm_swing_angle = 0.0  # Para movimiento de balanceo lateral
-        self.arm_swing_speed = 12.0  # Velocidad del balanceo (más rápido para efecto de golpe)
-        self.action_intensity = 1.0  # Intensidad del movimiento
+        self.arm_swing_angle = 0.0
+        self.arm_swing_speed = 12.0
+        self.action_intensity = 1.0
         
         # Objetos 3D
         self.obj_body = None
@@ -34,7 +34,7 @@ class Granjero:
         self.obj_leg_right = None
         self.obj_leg_left = None
         
-        self.limite = 400  # Límites de movimiento
+        self.limite = 400
         
     def cargar_objetos(self, objetos_dict):
         """Carga los modelos 3D del granjero"""
@@ -89,18 +89,10 @@ class Granjero:
         
         # Actualizar animación del brazo cuando está alimentando
         if self.feeding:
-            # Movimiento de balanceo lateral como si estuviera esparciendo comida
             self.arm_swing_angle += self.arm_swing_speed
             if self.arm_swing_angle > 360:
                 self.arm_swing_angle = 0
-            
-            # # Elevar brazo ligeramente
-            # if self.feeding_arm_angle < 30.0:
-            #     self.feeding_arm_angle += self.feeding_arm_speed
-            #     if self.feeding_arm_angle > 30.0:
-            #         self.feeding_arm_angle = 30.0
         else:
-            # Regresar brazo a posición normal
             self.arm_swing_angle = 0.0
             if self.feeding_arm_angle > 0.0:
                 self.feeding_arm_angle -= self.feeding_arm_speed
@@ -126,7 +118,8 @@ class Granjero:
         """Dibuja el granjero con animación"""
         glPushMatrix()
         
-        glTranslatef(self.x, self.y, self.z)
+        # Raise farmer up so he's not sinking into ground
+        glTranslatef(self.x, self.y + 30, self.z)
         glRotatef(self.angulo_rotacion, 0, 1, 0)
         
         # Color según estado
@@ -139,7 +132,8 @@ class Granjero:
         else:
             glColor3f(1.0, 1.0, 1.0)  # Blanco normal
         
-        scale = 25.0
+        # ENORMOUS FARMER!
+        scale = 150.0
         glScalef(scale, scale, scale)
         
         # Dibujar cuerpo (siempre fijo)
@@ -148,27 +142,22 @@ class Granjero:
             self.obj_body.render()
             glPopMatrix()
         else:
-            # Fallback: dibujar un cubo simple si no hay modelo
             self._draw_simple_cube()
         
         # Brazo derecho - PIVOTE EN EL HOMBRO
         if self.obj_arm_right:
             glPushMatrix()
             
-            # Posición del hombro (AJUSTA ESTOS VALORES según tu modelo)
-            shoulder_offset_x = 0.6   # Lado derecho del cuerpo
-            shoulder_offset_y = 1.2   # Altura del hombro  
-            shoulder_offset_z = 0.0   # Centro en profundidad
+            shoulder_offset_x = 0.6
+            shoulder_offset_y = 1.2
+            shoulder_offset_z = 0.0
             
-            # PASO 1: Mover AL punto de pivote (hombro)
             glTranslatef(shoulder_offset_x, shoulder_offset_y, shoulder_offset_z)
             
-            # PASO 2: Aplicar rotaciones desde el hombro
             if self.feeding:
-                phase = math.radians(self.arm_swing_angle)
-                pendulum_motion = math.sin(phase) * 25
-                glRotatef(-self.feeding_arm_angle, 1, 0, 0)
-                glRotatef(pendulum_motion, 1, 0, 0)
+                # Arm extends slightly forward and stays there
+                forward_extend = -15  # Subtle forward extension
+                glRotatef(forward_extend, 1, 0, 0)
                 
             elif self.collecting_wheat:
                 collection_phase = self.tiempo_animacion * 4
@@ -181,8 +170,6 @@ class Granjero:
                 glRotatef(-15, 1, 0, 0)
                 glRotatef(point_swing, 0, 1, 0)
             
-            # PASO 3: Compensar el origen del modelo 3D
-            # Esto mueve de vuelta desde el hombro al origen del modelo
             glTranslatef(-shoulder_offset_x, -shoulder_offset_y, -shoulder_offset_z)
             
             self.obj_arm_right.render()
@@ -194,23 +181,21 @@ class Granjero:
             self.obj_arm_left.render()
             glPopMatrix()
         
-        # Animación de piernas - MOVIMIENTO MINIMO (solo cuando camina)
+        # Piernas - SUPER SUBTLE walking animation
         if self.moviendo:
-            leg_swing = math.sin(self.tiempo_animacion) * 5
+            leg_swing = math.sin(self.tiempo_animacion) * 3  # SUPER subtle - only 3 degrees!
         else:
             leg_swing = 0
         
-        # Pierna derecha
         if self.obj_leg_right:
             glPushMatrix()
-            glRotatef(leg_swing, 1, 0, 0)
+            glRotatef(leg_swing, 1, 0, 0)  # Tiny forward/back
             self.obj_leg_right.render()
             glPopMatrix()
         
-        # Pierna izquierda (movimiento opuesto)
         if self.obj_leg_left:
             glPushMatrix()
-            glRotatef(-leg_swing, 1, 0, 0)
+            glRotatef(-leg_swing, 1, 0, 0)  # Opposite leg
             self.obj_leg_left.render()
             glPopMatrix()
         

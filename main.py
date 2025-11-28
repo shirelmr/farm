@@ -8,9 +8,11 @@ import requests
 import json
 import time
 
-from objloader import *
+from objloader import OBJ
 from pato import Pato
 from granjero import Granjero
+from ground import TexturedGround
+from food import FoodSystem
 
 # BIGGER WINDOW
 screen_width = 1400
@@ -48,6 +50,12 @@ smooth_positions = {}  # Para interpolación suave
 
 # Variables para el granjero
 granjero = None  # Se inicializará en Init()
+
+# Ground
+ground = None
+
+# Food system
+food_system = None
 
 def print_controls():
     """Imprime los controles del granjero en consola"""
@@ -158,7 +166,7 @@ def Axis():
     glLineWidth(1.0)
 
 def Init():
-    global patos, objetos_pato, farm_models, granjero
+    global patos, objetos_pato, farm_models, granjero, ground
     
     screen = pygame.display.set_mode(
         (screen_width, screen_height), DOUBLEBUF | OPENGL)
@@ -185,103 +193,76 @@ def Init():
     glEnable(GL_COLOR_MATERIAL)
     glShadeModel(GL_SMOOTH)
     
-    # Cargar objetos del pato
+    # ===== LOAD TEXTURED GROUND =====
+    print("Cargando piso con textura...")
+    ground = TexturedGround("grass2.jpg", size=2000, tile_repeat=20)
+    
+    # ===== LOAD DUCK MODELS =====
     print("Cargando body.obj...")
     objetos_pato['body'] = OBJ("body.obj", swapyz=True)
-    objetos_pato['body'].generate()
     
     print("Cargando pata1.obj...")
     objetos_pato['pata1'] = OBJ("pata1.obj", swapyz=True)
-    objetos_pato['pata1'].generate()
     
     print("Cargando pata2.obj...")
     objetos_pato['pata2'] = OBJ("pata2.obj", swapyz=True)
-    objetos_pato['pata2'].generate()
 
     print("Cargando ala1.obj...")
     objetos_pato['ala1'] = OBJ("ala1.obj", swapyz=True)
-    objetos_pato['ala1'].generate()
 
     print("Cargando ala2.obj...")
     objetos_pato['ala2'] = OBJ("ala2.obj", swapyz=True)
-    objetos_pato['ala2'].generate()
 
-    print("Objetos cargados correctamente!")
+    print("Objetos de pato cargados correctamente!")
     
-    # Cargar modelos de la granja
+    # ===== LOAD FARM MODELS =====
     print("Cargando modelos de la granja...")
     
     try:
         farm_models['house'] = OBJ("house.obj", swapyz=False)
-        farm_models['house'].generate()
         print("✓ house.obj cargado")
     except Exception as e:
         print(f"✗ No se pudo cargar house.obj: {e}")
     
-    try:
-        farm_models['molino'] = OBJ("molino.obj", swapyz=False)
-        farm_models['molino'].generate()
-        print("✓ molino.obj cargado")
-    except Exception as e:
-        print(f"✗ No se pudo cargar molino.obj: {e}")
-    
-    try:
-        print("Intentando cargar grass.obj...")
-        farm_models['grass'] = OBJ("grass.obj", swapyz=False)
-        farm_models['grass'].generate()
-        print("✓ grass.obj cargado exitosamente")
-        print(f"Vertices: {len(farm_models['grass'].vertices) if hasattr(farm_models['grass'], 'vertices') else 'N/A'}")
-        print(f"Faces: {len(farm_models['grass'].faces) if hasattr(farm_models['grass'], 'faces') else 'N/A'}")
-        print(f"Materials: {list(farm_models['grass'].mtl.keys()) if hasattr(farm_models['grass'], 'mtl') else 'N/A'}")
-    except Exception as e:
-        print(f"✗ No se pudo cargar grass.obj: {e}")
-        import traceback
-        traceback.print_exc()
-
+    # Molino comentado porque es muy pesado - descomentar si tienes uno optimizado
     # try:
-    #     farm_models['trigo'] = OBJ("trigo.obj", swapyz=False)
-    #     farm_models['trigo'].generate()
-    #     print("✓ trigo.obj cargado")
+    #     farm_models['molino'] = OBJ("molino.obj", swapyz=False)
+    #     print("✓ molino.obj cargado")
     # except Exception as e:
-    #     print(f"✗ No se pudo cargar trigo.obj: {e}")
+    #     print(f"✗ No se pudo cargar molino.obj: {e}")
     
     print("Modelos de granja cargados!")
     
-    # Cargar modelos del granjero
+    # ===== LOAD FARMER MODELS =====
     print("Cargando modelos del granjero...")
     objetos_granjero = {}
     
     try:
-        objetos_granjero['farmer_body'] = OBJ("granjero/farmer.obj", swapyz=False)
-        objetos_granjero['farmer_body'].generate()
-        print("✓ farmer.obj cargado")
+        objetos_granjero['farmer_body'] = OBJ("granjero/torso_farmer.obj", swapyz=False)
+        print("✓ torso_farmer.obj cargado")
     except Exception as e:
-        print(f"✗ No se pudo cargar farmer.obj: {e}")
+        print(f"✗ No se pudo cargar torso_farmer.obj: {e}")
     
     try:
         objetos_granjero['farmer_arm_right'] = OBJ("granjero/arm_derecho.obj", swapyz=False)
-        objetos_granjero['farmer_arm_right'].generate()
         print("✓ arm_derecho.obj cargado")
     except Exception as e:
         print(f"✗ No se pudo cargar arm_derecho.obj: {e}")
     
     try:
         objetos_granjero['farmer_arm_left'] = OBJ("granjero/arm_izquierdo.obj", swapyz=False)
-        objetos_granjero['farmer_arm_left'].generate()
         print("✓ arm_izquierdo.obj cargado")
     except Exception as e:
         print(f"✗ No se pudo cargar arm_izquierdo.obj: {e}")
     
     try:
         objetos_granjero['farmer_leg_right'] = OBJ("granjero/pie_derecho.obj", swapyz=False)
-        objetos_granjero['farmer_leg_right'].generate()
         print("✓ pie_derecho.obj cargado")
     except Exception as e:
         print(f"✗ No se pudo cargar pie_derecho.obj: {e}")
     
     try:
         objetos_granjero['farmer_leg_left'] = OBJ("granjero/pie_izquierdo.obj", swapyz=False)
-        objetos_granjero['farmer_leg_left'].generate()
         print("✓ pie_izquierdo.obj cargado")
     except Exception as e:
         print(f"✗ No se pudo cargar pie_izquierdo.obj: {e}")
@@ -302,6 +283,11 @@ def Init():
         smooth_positions[i+1] = (0, 0)
     
     print(f"Creados {len(patos)} patos")
+    
+    # Initialize food system
+    global food_system
+    food_system = FoodSystem()
+    print("Sistema de comida inicializado!")
 
 def lookat():
     global EYE_X, EYE_Y, EYE_Z, radius, theta, phi
@@ -320,29 +306,14 @@ def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     Axis()
     
-    # Draw ground using grass.obj model
-    if farm_models.get('grass'):
-        glColor3f(0.3, 0.8, 0.3)  # Verde brillante para asegurar visibilidad
-        glPushMatrix()
-        glTranslatef(0, -5, 0)    # Bajar un poco para que esté en el suelo
-        glRotatef(0, 0, 1, 0)     # Sin rotación
-        glScalef(20, 1, 20)       # Escala muy grande en X y Z, normal en Y
-        farm_models['grass'].render()
-        glPopMatrix()
-    else:
-        # Fallback: Draw simple green ground if grass model fails to load
-        glColor3f(0.2, 0.7, 0.2)
-        glBegin(GL_QUADS)
-        glVertex3d(-DimBoard, 0, -DimBoard)
-        glVertex3d(-DimBoard, 0, DimBoard)
-        glVertex3d(DimBoard, 0, DimBoard)
-        glVertex3d(DimBoard, 0, -DimBoard)
-        glEnd()
+    # ===== DRAW TEXTURED GROUND =====
+    if ground:
+        ground.render()
     
-    # Farm models - todos en coordenadas (0,0)
+    # ===== DRAW FARM MODELS =====
     if farm_models.get('house'):
         glPushMatrix()
-        glTranslatef(0, 0, 0)  # Coordenadas (0,0) como solicitaste
+        glTranslatef(0, 0, 0)
         glRotatef(0, 0, 1, 0)
         glScalef(15, 15, 15)
         farm_models['house'].render()
@@ -350,7 +321,7 @@ def display():
 
     if farm_models.get('molino'):
         glPushMatrix()
-        glTranslatef(0, 0, 0)  # Coordenadas (0,0) como solicitaste
+        glTranslatef(0, 0, 0)
         glRotatef(0, 0, 1, 0)
         glScalef(15, 15, 15)
         farm_models['molino'].render()
@@ -358,17 +329,21 @@ def display():
 
     if farm_models.get('trigo'):
         glPushMatrix()
-        glTranslatef(0, 0, 0)  # Coordenadas (0,0) como solicitaste
+        glTranslatef(0, 0, 0)
         glRotatef(0, 0, 1, 0)
         glScalef(15, 15, 15)
         farm_models['trigo'].render()
         glPopMatrix()
     
-    # Draw farmer
+    # ===== DRAW FARMER =====
     if granjero:
         granjero.dibujar()
     
-    # Draw ducks
+    # ===== DRAW FOOD PARTICLES =====
+    if food_system:
+        food_system.render()
+    
+    # ===== DRAW DUCKS =====
     for pato in patos:
         pato.dibujar()
 
@@ -470,6 +445,15 @@ while not done:
     granjero.collecting_wheat = keys[pygame.K_t]
     granjero.herding_mode = keys[pygame.K_h]
     
+    # Update food system
+    food_system.update(
+        granjero.feeding,
+        granjero.x,
+        granjero.y,
+        granjero.z,
+        granjero.angulo_rotacion
+    )
+    
     # Update farmer position in Julia
     update_farmer_position(granjero.x, granjero.z, granjero.feeding, 
                           granjero.collecting_wheat, granjero.herding_mode)
@@ -534,6 +518,6 @@ while not done:
     display()
     pygame.display.flip()
     
-    clock.tick(60)  # Back to 60 FPS for smooth movement
+    clock.tick(60)  # 60 FPS for smooth movement
 
 pygame.quit()

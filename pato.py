@@ -25,7 +25,7 @@ class Pato:
         self.peck_timer = 0
         self.peck_duration = 20  # frames
         # Maximum rotation angle for pecking (in degrees)
-        self.peck_angle_max = 45.0  # Increased angle for more noticeable pecking
+        self.peck_angle_max = 45.0
         self._peck_angle = 0.0
         
     def cargar_objetos(self, objetos_dict):
@@ -55,12 +55,11 @@ class Pato:
                 
     def mover(self, direccion_x, direccion_z):
         # Move relative to the current facing direction
-        # direccion_z: positive forward in local coordinates
         angulo_rad = math.radians(self.angulo_rotacion)
         cos_ang = math.cos(angulo_rad)
         sin_ang = math.sin(angulo_rad)
 
-        # Transform local movement (direccion_x,direccion_z) to world-space dx,dz
+        # Transform local movement to world-space
         dx = direccion_z * sin_ang + direccion_x * cos_ang
         dz = direccion_z * cos_ang - direccion_x * sin_ang
 
@@ -73,37 +72,33 @@ class Pato:
             self.z = nueva_z
 
     def rotar(self, direccion):
-        # direccion: -1 left, 1 right
         self.angulo_rotacion = (self.angulo_rotacion + direccion * 5) % 360
         
     def dibujar(self):
         glPushMatrix()
         
         glTranslatef(self.x, self.y, self.z)
-        # rotate so model faces movement; add 180 if model's forward is inverted
         glRotatef(self.angulo_rotacion + 180, 0, 1, 0)
-        # Dibujar cuerpo aplicando desplazamiento de picoteo (en coordenadas locales antes de rotar en X y escalar)
+        
+        # Dibujar cuerpo
         if self.obj_body:
             glPushMatrix()
-            # aplicar rotación para el picoteo
             peck_angle = getattr(self, '_peck_angle', 0.0)
-            glTranslatef(0.0, 0.3, -0.3)  # Move pivot point forward and up
-            glRotatef(-peck_angle, 1, 0, 0)  # Rotate around X axis (negative for forward tilt)
-            glTranslatef(0.0, -0.3, 0.3)  # Move pivot point back
-            # ahora aplicar la rotación X y escala que usa el modelo original
+            glTranslatef(0.0, 0.3, -0.3)
+            glRotatef(-peck_angle, 1, 0, 0)
+            glTranslatef(0.0, -0.3, 0.3)
             glRotatef(-90, 1, 0, 0)
             glScalef(100.0, 100.0, 100.0)
             self.obj_body.render()
             glPopMatrix()
         
-        # Dibujar pata1 (sin desplazamiento de picoteo)
+        # Dibujar pata1
         if self.obj_pata1:
             glPushMatrix()
             glTranslatef(-0.5, 0, 0)
             angulo_pata = math.sin(math.radians(self.tiempo_animacion)) * 15
             glRotatef(angulo_pata, 1, 0, 0)
             glTranslatef(0.5, 0, 0)
-            # aplicar rotación X y escala por separado para la pata
             glRotatef(-90, 1, 0, 0)
             glScalef(100.0, 100.0, 100.0)
             self.obj_pata1.render()
@@ -121,35 +116,43 @@ class Pato:
             self.obj_pata2.render()
             glPopMatrix()
         
-        # Dibujar ala1 (aleteo)
+        # Dibujar ala1 (aleteo) - FIXED PIVOT
         if self.obj_ala1:
             glPushMatrix()
-            # Apply same peck transform as body
+            # Apply peck transform
             peck_angle = getattr(self, '_peck_angle', 0.0)
-            glTranslatef(0.0, 0.3, -0.3)  # Move pivot point forward and up
-            glRotatef(-peck_angle, 1, 0, 0)  # Rotate around X axis (negative for forward tilt)
-            glTranslatef(0.0, -0.3, 0.3)  # Move pivot point back
-            # Now apply wing-specific transforms
-            glTranslatef(0.01, 0.1, 0)  # Posición del ala izquierda
-            angulo_ala = math.sin(math.radians(self.tiempo_animacion * 3)) * 30  # Aleteo más rápido
-            glRotatef(angulo_ala, 0, 0, 1)  # Rotar en Z para aletear
+            glTranslatef(0.0, 0.3, -0.3)
+            glRotatef(-peck_angle, 1, 0, 0)
+            glTranslatef(0.0, -0.3, 0.3)
+            
+            # Position wing at body - no rotation pivot tricks, just place it
+            glTranslatef(0.0, 0.15, 0)  # Slight height offset
+            
+            # Small flap angle to keep it subtle
+            angulo_ala = math.sin(math.radians(self.tiempo_animacion * 3)) * 10
+            glRotatef(angulo_ala, 0, 0, 1)
+            
             glRotatef(-90, 1, 0, 0)
             glScalef(100.0, 100.0, 100.0)
             self.obj_ala1.render()
             glPopMatrix()
         
-        # Dibujar ala2 (aleteo opuesto)
+        # Dibujar ala2 (aleteo opuesto) - FIXED PIVOT
         if self.obj_ala2:
             glPushMatrix()
-            # Apply same peck transform as body
+            # Apply peck transform
             peck_angle = getattr(self, '_peck_angle', 0.0)
-            glTranslatef(0.0, 0.3, -0.3)  # Move pivot point forward and up
-            glRotatef(-peck_angle, 1, 0, 0)  # Rotate around X axis (negative for forward tilt)
-            glTranslatef(0.0, -0.3, 0.3)  # Move pivot point back
-            # Now apply wing-specific transforms
-            glTranslatef(-0.01, 0.1, 0) # Posición del ala derecha
-            angulo_ala = math.sin(math.radians(self.tiempo_animacion * 3)) * -30  # Aleteo opuesto
+            glTranslatef(0.0, 0.3, -0.3)
+            glRotatef(-peck_angle, 1, 0, 0)
+            glTranslatef(0.0, -0.3, 0.3)
+            
+            # Position wing at body - no rotation pivot tricks, just place it
+            glTranslatef(0.0, 0.15, 0)  # Slight height offset
+            
+            # Small flap angle opposite direction
+            angulo_ala = math.sin(math.radians(self.tiempo_animacion * 3)) * -10
             glRotatef(angulo_ala, 0, 0, 1)
+            
             glRotatef(-90, 1, 0, 0)
             glScalef(100.0, 100.0, 100.0)
             self.obj_ala2.render()
