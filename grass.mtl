@@ -1,0 +1,32 @@
+# Blender 4.5.4 LTS MTL File: 'BARN SCENE-1.blend'
+# www.blender.org
+
+newmtl BARN_TEXTURES
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Ks BARN_spec.jpg
+map_Ns BARN_rough.jpg
+
+newmtl GROUND_1
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Ks GROUND_spec.jpg
+map_Ns GROUND_roughness.jpg
+
+newmtl ROCK_TEXTURES
+Ka 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd ROCK_diffuse.jpg
+map_Ks ROCK_spec.jpg
+map_Ns ROCK_rough.jpg

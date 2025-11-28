@@ -50,6 +50,7 @@ class OBJ:
         self.texcoords = []
         self.faces = []
         self.gl_list = 0
+        self.mtl = {}  # Initialize empty materials dictionary
         dirname = os.path.dirname(filename)
 
         material = None
@@ -72,7 +73,11 @@ class OBJ:
             elif values[0] in ('usemtl', 'usemat'):
                 material = values[1]
             elif values[0] == 'mtllib':
-                self.mtl = self.loadMaterial(os.path.join(dirname, values[1]))
+                try:
+                    self.mtl = self.loadMaterial(os.path.join(dirname, values[1]))
+                except Exception as e:
+                    print(f"Error cargando material {values[1]}: {e}")
+                    self.mtl = {}
             elif values[0] == 'f':
                 face = []
                 texcoords = []
@@ -100,13 +105,21 @@ class OBJ:
         for face in self.faces:
             vertices, normals, texture_coords, material = face
 
-            mtl = self.mtl[material]
-            if 'texture_Kd' in mtl:
-                # use diffuse texmap
-                glBindTexture(GL_TEXTURE_2D, mtl['texture_Kd'])
+            # Handle missing materials gracefully
+            if hasattr(self, 'mtl') and material and material in self.mtl:
+                mtl = self.mtl[material]
+                if 'texture_Kd' in mtl:
+                    # use diffuse texmap
+                    glBindTexture(GL_TEXTURE_2D, mtl['texture_Kd'])
+                elif 'Kd' in mtl:
+                    # just use diffuse colour
+                    glColor(*mtl['Kd'])
+                else:
+                    # Default color if no Kd
+                    glColor3f(0.8, 0.8, 0.8)
             else:
-                # just use diffuse colour
-                glColor(*mtl['Kd'])
+                # Default color if no material
+                glColor3f(0.8, 0.8, 0.8)
 
             glBegin(GL_POLYGON)
             for i in range(len(vertices)):

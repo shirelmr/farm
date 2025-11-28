@@ -22,7 +22,10 @@ class Granjero:
         
         # Animación de brazos para acciones
         self.feeding_arm_angle = 0.0
-        self.feeding_arm_speed = 3.0  # ← MÁS LENTO (era 5.0)
+        self.feeding_arm_speed = 4.0
+        self.arm_swing_angle = 0.0  # Para movimiento de balanceo lateral
+        self.arm_swing_speed = 12.0  # Velocidad del balanceo (más rápido para efecto de golpe)
+        self.action_intensity = 1.0  # Intensidad del movimiento
         
         # Objetos 3D
         self.obj_body = None
@@ -86,13 +89,19 @@ class Granjero:
         
         # Actualizar animación del brazo cuando está alimentando
         if self.feeding:
-            # Extender brazo gradualmente hacia adelante (máximo 45 grados)
-            if self.feeding_arm_angle < 45.0:  # ← REDUCIDO A 45 (era 60)
-                self.feeding_arm_angle += self.feeding_arm_speed
-                if self.feeding_arm_angle > 45.0:
-                    self.feeding_arm_angle = 45.0
+            # Movimiento de balanceo lateral como si estuviera esparciendo comida
+            self.arm_swing_angle += self.arm_swing_speed
+            if self.arm_swing_angle > 360:
+                self.arm_swing_angle = 0
+            
+            # # Elevar brazo ligeramente
+            # if self.feeding_arm_angle < 30.0:
+            #     self.feeding_arm_angle += self.feeding_arm_speed
+            #     if self.feeding_arm_angle > 30.0:
+            #         self.feeding_arm_angle = 30.0
         else:
             # Regresar brazo a posición normal
+            self.arm_swing_angle = 0.0
             if self.feeding_arm_angle > 0.0:
                 self.feeding_arm_angle -= self.feeding_arm_speed
                 if self.feeding_arm_angle < 0.0:
@@ -142,13 +151,40 @@ class Granjero:
             # Fallback: dibujar un cubo simple si no hay modelo
             self._draw_simple_cube()
         
-        # Brazo derecho - SE EXTIENDE HACIA ADELANTE CUANDO ALIMENTA
+        # Brazo derecho - PIVOTE EN EL HOMBRO
         if self.obj_arm_right:
             glPushMatrix()
-            # MOVEMOS EL PIVOTE AL HOMBRO antes de rotar
-            glTranslatef(0.0, 0.6, 0.0)  # Mover pivote al hombro (ajusta según tu modelo)
-            glRotatef(-self.feeding_arm_angle, 1, 0, 0)  # Rotar hacia adelante
-            glTranslatef(0.0, -0.6, 0.0)  # Regresar pivote
+            
+            # Posición del hombro (AJUSTA ESTOS VALORES según tu modelo)
+            shoulder_offset_x = 0.6   # Lado derecho del cuerpo
+            shoulder_offset_y = 1.2   # Altura del hombro  
+            shoulder_offset_z = 0.0   # Centro en profundidad
+            
+            # PASO 1: Mover AL punto de pivote (hombro)
+            glTranslatef(shoulder_offset_x, shoulder_offset_y, shoulder_offset_z)
+            
+            # PASO 2: Aplicar rotaciones desde el hombro
+            if self.feeding:
+                phase = math.radians(self.arm_swing_angle)
+                pendulum_motion = math.sin(phase) * 25
+                glRotatef(-self.feeding_arm_angle, 1, 0, 0)
+                glRotatef(pendulum_motion, 1, 0, 0)
+                
+            elif self.collecting_wheat:
+                collection_phase = self.tiempo_animacion * 4
+                collect_swing = 30 + math.sin(collection_phase) * 15
+                glRotatef(collect_swing, 1, 0, 0)
+                
+            elif self.herding_mode:
+                herd_phase = self.tiempo_animacion * 1.5
+                point_swing = math.sin(herd_phase) * 20
+                glRotatef(-15, 1, 0, 0)
+                glRotatef(point_swing, 0, 1, 0)
+            
+            # PASO 3: Compensar el origen del modelo 3D
+            # Esto mueve de vuelta desde el hombro al origen del modelo
+            glTranslatef(-shoulder_offset_x, -shoulder_offset_y, -shoulder_offset_z)
+            
             self.obj_arm_right.render()
             glPopMatrix()
         

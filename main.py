@@ -212,25 +212,11 @@ def Init():
     print("Cargando modelos de la granja...")
     
     try:
-        farm_models['farm'] = OBJ("farm.obj", swapyz=False)
-        farm_models['farm'].generate()
-        print("✓ farm.obj cargado")
+        farm_models['house'] = OBJ("house.obj", swapyz=False)
+        farm_models['house'].generate()
+        print("✓ house.obj cargado")
     except Exception as e:
-        print(f"✗ No se pudo cargar farm.obj: {e}")
-    
-    try:
-        farm_models['granja'] = OBJ("granja.obj", swapyz=False)
-        farm_models['granja'].generate()
-        print("✓ granja.obj cargado")
-    except Exception as e:
-        print(f"✗ No se pudo cargar granja.obj: {e}")
-    
-    try:
-        farm_models['gallinero'] = OBJ("gallinero.obj", swapyz=False)
-        farm_models['gallinero'].generate()
-        print("✓ gallinero.obj cargado")
-    except Exception as e:
-        print(f"✗ No se pudo cargar gallinero.obj: {e}")
+        print(f"✗ No se pudo cargar house.obj: {e}")
     
     try:
         farm_models['molino'] = OBJ("molino.obj", swapyz=False)
@@ -240,18 +226,24 @@ def Init():
         print(f"✗ No se pudo cargar molino.obj: {e}")
     
     try:
-        farm_models['trigo'] = OBJ("trigo.obj", swapyz=False)
-        farm_models['trigo'].generate()
-        print("✓ trigo.obj cargado")
+        print("Intentando cargar grass.obj...")
+        farm_models['grass'] = OBJ("grass.obj", swapyz=False)
+        farm_models['grass'].generate()
+        print("✓ grass.obj cargado exitosamente")
+        print(f"Vertices: {len(farm_models['grass'].vertices) if hasattr(farm_models['grass'], 'vertices') else 'N/A'}")
+        print(f"Faces: {len(farm_models['grass'].faces) if hasattr(farm_models['grass'], 'faces') else 'N/A'}")
+        print(f"Materials: {list(farm_models['grass'].mtl.keys()) if hasattr(farm_models['grass'], 'mtl') else 'N/A'}")
     except Exception as e:
-        print(f"✗ No se pudo cargar trigo.obj: {e}")
-    
-    try:
-        farm_models['sembradero'] = OBJ("sembradero1.obj", swapyz=False)
-        farm_models['sembradero'].generate()
-        print("✓ sembradero1.obj cargado")
-    except Exception as e:
-        print(f"✗ No se pudo cargar sembradero1.obj: {e}")
+        print(f"✗ No se pudo cargar grass.obj: {e}")
+        import traceback
+        traceback.print_exc()
+
+    # try:
+    #     farm_models['trigo'] = OBJ("trigo.obj", swapyz=False)
+    #     farm_models['trigo'].generate()
+    #     print("✓ trigo.obj cargado")
+    # except Exception as e:
+    #     print(f"✗ No se pudo cargar trigo.obj: {e}")
     
     print("Modelos de granja cargados!")
     
@@ -328,38 +320,48 @@ def display():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     Axis()
     
-    # Draw BIGGER green ground
-    glColor3f(0.2, 0.7, 0.2)
-    glBegin(GL_QUADS)
-    glVertex3d(-DimBoard, 0, -DimBoard)
-    glVertex3d(-DimBoard, 0, DimBoard)
-    glVertex3d(DimBoard, 0, DimBoard)
-    glVertex3d(DimBoard, 0, -DimBoard)
-    glEnd()
+    # Draw ground using grass.obj model
+    if farm_models.get('grass'):
+        glColor3f(0.3, 0.8, 0.3)  # Verde brillante para asegurar visibilidad
+        glPushMatrix()
+        glTranslatef(0, -5, 0)    # Bajar un poco para que esté en el suelo
+        glRotatef(0, 0, 1, 0)     # Sin rotación
+        glScalef(20, 1, 20)       # Escala muy grande en X y Z, normal en Y
+        farm_models['grass'].render()
+        glPopMatrix()
+    else:
+        # Fallback: Draw simple green ground if grass model fails to load
+        glColor3f(0.2, 0.7, 0.2)
+        glBegin(GL_QUADS)
+        glVertex3d(-DimBoard, 0, -DimBoard)
+        glVertex3d(-DimBoard, 0, DimBoard)
+        glVertex3d(DimBoard, 0, DimBoard)
+        glVertex3d(DimBoard, 0, -DimBoard)
+        glEnd()
     
-    # Farm models
+    # Farm models - todos en coordenadas (0,0)
+    if farm_models.get('house'):
+        glPushMatrix()
+        glTranslatef(0, 0, 0)  # Coordenadas (0,0) como solicitaste
+        glRotatef(0, 0, 1, 0)
+        glScalef(15, 15, 15)
+        farm_models['house'].render()
+        glPopMatrix()
+
     if farm_models.get('molino'):
         glPushMatrix()
-        glTranslatef(-180, 0, 150)
+        glTranslatef(0, 0, 0)  # Coordenadas (0,0) como solicitaste
         glRotatef(0, 0, 1, 0)
         glScalef(15, 15, 15)
         farm_models['molino'].render()
         glPopMatrix()
 
-    if farm_models.get('farm'):
+    if farm_models.get('trigo'):
         glPushMatrix()
-        glTranslatef(0, 0, 0)
+        glTranslatef(0, 0, 0)  # Coordenadas (0,0) como solicitaste
         glRotatef(0, 0, 1, 0)
         glScalef(15, 15, 15)
-        farm_models['farm'].render()
-        glPopMatrix()
-
-    if farm_models.get('gallinero'):
-        glPushMatrix()
-        glTranslatef(800, 0, 10)
-        glRotatef(45, 0, 1, 0)
-        glScalef(15, 15, 15)
-        farm_models['gallinero'].render()
+        farm_models['trigo'].render()
         glPopMatrix()
     
     # Draw farmer
