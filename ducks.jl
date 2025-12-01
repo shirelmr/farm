@@ -5,21 +5,21 @@ using Plots
 
 mutable struct Duck <: AbstractAgent
     id::Int
-    pos::SVector{2,Float64}  # Position as continuous coordinates
-    vel::SVector{2,Float64}  # Velocity vector
-    speed::Float64          # Speed magnitude
+    pos::SVector{2,Float64} 
+    vel::SVector{2,Float64} 
+    speed::Float64       
 end
 
 # Farmer structure (not an agent, just a game entity)
 mutable struct Farmer
     id::Int
-    pos::SVector{2,Float64}  # Position in the farm
-    feeding::Bool           # Whether farmer is feeding ducks
-    feed_radius::Float64    # Radius where ducks can be attracted to food
-    collecting_wheat::Bool  # Whether farmer is collecting wheat
-    herding_mode::Bool      # Whether farmer is in herding/corral mode
-    scare_radius::Float64   # Radius within which ducks get scared when not feeding
-    collision_radius::Float64  # NEW: Hard collision radius - ducks can't enter this
+    pos::SVector{2,Float64} 
+    feeding::Bool           
+    feed_radius::Float64    
+    collecting_wheat::Bool  
+    herding_mode::Bool      
+    scare_radius::Float64   
+    collision_radius::Float64  
 end
 
 # Function to initialize a duck with random position and velocity

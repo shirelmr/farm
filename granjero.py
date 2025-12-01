@@ -165,10 +165,8 @@ class Granjero:
                 glRotatef(collect_swing, 1, 0, 0)
                 
             elif self.herding_mode:
-                herd_phase = self.tiempo_animacion * 1.5
-                point_swing = math.sin(herd_phase) * 20
-                glRotatef(-15, 1, 0, 0)
-                glRotatef(point_swing, 0, 1, 0)
+                # No hay animación especial en modo herding, solo mantener brazo normal
+                pass
             
             glTranslatef(-shoulder_offset_x, -shoulder_offset_y, -shoulder_offset_z)
             
